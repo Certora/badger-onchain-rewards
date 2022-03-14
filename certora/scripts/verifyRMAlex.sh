@@ -1,10 +1,9 @@
 certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC20A.sol certora/helpers/DummyERC20B.sol \
-    --verify RewardsManagerHarness:certora/specs/RM.spec \
-    --solc solc8.10  \
+    --verify RewardsManagerHarness:certora/specs/itsLikeAReward.spec \
+    --solc solc8.10 \
     --optimistic_loop \
+    --cloud \
     --loop_iter 1 \
     --packages @oz=certora/openzeppelin/contracts \
-    --send_only \
-    --cloud \
-    --rule "$1" \
-    --msg "$2"
+    # --rule "$1" \
+    # --msg "$1"

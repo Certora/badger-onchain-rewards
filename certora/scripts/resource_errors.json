@@ -1,0 +1,13 @@
+{
+    "topics": [
+        {
+            "name": "solc",
+            "messages": [
+                {
+                    "message": "Cannot import url (\"/Users/web3/Certora/badger-onchain-rewards/certora/harnesses/RewardsManagerHarness.sol\"): File outside of allowed directories.",
+                    "location": []
+                }
+            ]
+        }
+    ]
+}
