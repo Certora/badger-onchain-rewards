@@ -49,5 +49,26 @@ External and public functions:
 4. ***High-level property*** - totalPoints[epochId][vault] = sum(points[epochId][vault][user])
 5. ***High-level property*** - totalSupply[epochId][vault] = sum(shares[epochId][vault][user])
 6. ***High-level property*** - pointsWithdrawn[epochId][vault][user][token] <= points[epochId][vault][user]
+7. ***Variable transition*** - currentEpoch should increment by 1 after startNextEpoch
+8. ***Variable transition*** - epochs[currentEpoch] should have block.timestamp as startTimestamp
+9. ***Variable transition*** - lastAccruedTimestamp[epochId][vault] should be block.timestamp after accrueVault
+10. ***Variable transition*** - totalPoints[epochId][vault] should increase by timeLeftToAccrue * totalSupply[epochId][vault] after accrueVault
+11. ***Unit test*** - epochId > currentEpoch => getVaultTimeLeftToAccrue(epochId, vault) = 0
+12. ***Unit test*** - epochs[epochId].startTimestamp == 0 => getVaultTimeLeftToAccrue(epochId, vault) = 0
+13. ***Unit test*** - lastAccruedTimestamp[epochId][vault] == 0 && epochs[epochId].startTimestamp != 0 => getVaultTimeLeftToAccrue(epochId, vault) ==  SECONDS_PER_EPOCH
+14. ***Unit test*** - getVaultTimeLeftToAccrue should return 0 after accrueVault is called on the same epochId and vault
+15. ***Unit test*** - getTotalSupplyAtEpoch should update after notifyTransfer if it's deposit or withdrawal, or remains the same if it's transfer
+16. ***Unit test*** - claimReward should have consistent effect on the pointsWithdrawn and the token transfer, i.e., if pointWithdrawn increases, the token must be transferred to the user
+17. ***Unit test*** - claimRewards should have the same effect as calling claimReward multiple times
+18. ***Unit test*** - claimBulkTokensOverMultipleEpochs should have the same effect as calling claimReward multiple times
+19. ***Unit test*** - claimBulkTokensOverMultipleEpochsOptimized should have the same effect as claimBulkTokensOverMultipleEpochs except that all the points and some shares data are deleted
+20. ***Variable transition*** - addReward should update the contract's token balance and rewards data at the same time
+21. ***Variable transition*** - lastUserAccruedTimestamp[epochId][vault][user] should be block.timestamp after accrueUser
+22. ***Variable transition*** - points[epochId][vault][user] should increase by userTimeLeftToAccrue * shares[epochId][vault][user] after accrueUser
+23. ***Unit test*** - epochId > currentEpoch => getUserTimeLeftToAccrue(epochId, vault) = 0
+24. ***Unit test*** - epochs[epochId].startTimestamp == 0 => getUserTimeLeftToAccrue(epochId, vault, user) = 0
+25. ***Unit test*** - lastUserAccruedTimestamp[epochId][vault][user] == 0 && epochs[epochId].startTimestamp != 0 => getUserTimeLeftToAccrue(epochId, vault, user) ==  SECONDS_PER_EPOCH
+26. ***Unit test*** - getUserTimeLeftToAccrue should return 0 after accrueUser is called on the same epochId, vault and user
+27. ***Unit test*** - getBalanceAtEpoch should update after notifyTransfer
 
 
