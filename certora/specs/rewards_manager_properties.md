@@ -46,8 +46,7 @@ External and public functions:
 1. ***High-level property*** - (epochId_1 < epochId_2 && epochId <= currentEpoch) <=> epochs[epochId_1].endTimestamp < epochs[epochId_2].startTimestamp
 2. ***High-level property*** - currentEpoch > 0 => epochs[currentEpoch].startTimestamp + 604800 = epochs[currentEpoch].endTimestamp
 3. ***High-level property*** - currentEpoch > 0 => epochs[currentEpoch].startTimestamp <= block.timestamp
-4. ***High-level property*** - totalPoints[epochId][vault] = sum(points[epochId][vault][user])
-5. ***High-level property*** - totalSupply[epochId][vault] = sum(shares[epochId][vault][user])
+5. ***High-level property*** - shares[epochId][vault][user]) <= totalSupply[epochId][vault]
 6. ***High-level property*** - pointsWithdrawn[epochId][vault][user][token] <= points[epochId][vault][user]
 7. ***Variable transition*** - currentEpoch should increment by 1 after startNextEpoch
 8. ***Variable transition*** - epochs[currentEpoch] should have block.timestamp as startTimestamp
