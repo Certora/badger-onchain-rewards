@@ -52,9 +52,9 @@ External and public functions:
 8. ***Variable transition*** - epochs[currentEpoch] should have block.timestamp as startTimestamp
 9. ***Variable transition*** - lastAccruedTimestamp[epochId][vault] should be block.timestamp after accrueVault
 10. ***Variable transition*** - totalPoints[epochId][vault] should increase by timeLeftToAccrue * totalSupply[epochId][vault] after accrueVault
-11. ***Unit test*** - epochId > currentEpoch => getVaultTimeLeftToAccrue(epochId, vault) = 0
-12. ***Unit test*** - epochs[epochId].startTimestamp == 0 => getVaultTimeLeftToAccrue(epochId, vault) = 0
-13. ***Unit test*** - lastAccruedTimestamp[epochId][vault] == 0 && epochs[epochId].startTimestamp != 0 => getVaultTimeLeftToAccrue(epochId, vault) ==  SECONDS_PER_EPOCH
+11. ***High-level property*** - epochId > currentEpoch => getVaultTimeLeftToAccrue(epochId, vault) = 0
+12. ***High-level property*** - epochs[epochId].startTimestamp == 0 => getVaultTimeLeftToAccrue(epochId, vault) = 0
+13. ***High-level property*** - lastAccruedTimestamp[epochId][vault] == 0 && epochs[epochId].startTimestamp != 0 => getVaultTimeLeftToAccrue(epochId, vault) ==  SECONDS_PER_EPOCH
 14. ***Unit test*** - getVaultTimeLeftToAccrue should return 0 after accrueVault is called on the same epochId and vault
 15. ***Unit test*** - getTotalSupplyAtEpoch should update after notifyTransfer if it's deposit or withdrawal, or remains the same if it's transfer
 16. ***Unit test*** - claimReward should have consistent effect on the pointsWithdrawn and the token transfer, i.e., if pointWithdrawn increases, the token must be transferred to the user

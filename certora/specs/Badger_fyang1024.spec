@@ -26,14 +26,14 @@ methods {
 	accrueVault(uint256, address)
 	getVaultTimeLeftToAccrue(uint256, address) returns(uint256)
 	claimBulkTokensOverMultipleEpochsOptimized(uint256, uint256, address, address[])
-	addRewards(uint256, address, address, uint256)
+	addRewards(uint256[], address[], address[], uint256[])
 	addReward(uint256, address, address, uint256)
 	notifyTransfer(address, address, uint256)
 	accrueUser(uint256, address, address)
 	getUserTimeLeftToAccrue(uint256, address, address) returns(uint256)
-	claimRewards(uint256, address, address, address)
+	claimRewards(uint256[], address[], address[], address[])
 	claimReward(uint256, address, address, address)
-	claimBulkTokensOverMultipleEpochs(uint256, uint256, address, address, address)
+	claimBulkTokensOverMultipleEpochs(uint256, uint256, address, address[], address)
 	handleDeposit(address, address, uint256)
 	handleWithdrawal(address, address, uint256)
 	handleTransfer(address, address, address, uint256)
@@ -104,3 +104,24 @@ filtered {
 	f(e, args);
 	assert getPointsWithdrawn(epochId, vault, user, token) <= getPoints(epochId, vault, user);
 }
+
+rule lastAccruedTimestamp_updated(uint256 epochId, address vault) {
+	env e;
+	accrueVault(e, epochId, vault);
+	assert getLastAccruedTimestamp(epochId, vault) == e.block.timestamp;
+}
+
+rule accreuVault_idempotent(uint256 epochId, address vault) {
+	env e;
+	accrueVault(e, epochId, vault);
+	uint256 totalPointsAfterFirstAccruement = getTotalPoints(epochId, vault);
+	accrueVault(e, epochId, vault);
+	uint256 totalPointsAfterSecondAccruement = getTotalPoints(epochId, vault);
+	assert totalPointsAfterFirstAccruement == totalPointsAfterSecondAccruement;
+}
+
+invariant epochTimestamps_BothZero_or_SECONDS_PER_EPOCH_apart(uint256 epochId)
+    getEpochsStartTimestamp(epochId) == 0 && getEpochsEndTimestamp(epochId) == 0 || getEpochsStartTimestamp(epochId) + SECONDS_PER_EPOCH() == getEpochsEndTimestamp(epochId)
+
+invariant timeLeftToAccrure_is_Zero_at_NonExistingEpoch(env e, uint256 epochId, address vault)
+	epochId > currentEpoch() => getVaultTimeLeftToAccrue(e, epochId, vault) == 0
