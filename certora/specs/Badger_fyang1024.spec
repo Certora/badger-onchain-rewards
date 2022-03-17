@@ -125,3 +125,15 @@ invariant epochTimestamps_BothZero_or_SECONDS_PER_EPOCH_apart(uint256 epochId)
 
 invariant timeLeftToAccrure_is_Zero_at_NonExistingEpoch(env e, uint256 epochId, address vault)
 	epochId > currentEpoch() => getVaultTimeLeftToAccrue(e, epochId, vault) == 0
+
+rule timeLeftToAccure_Zero_After_Accruement(uint256 epochId, address vault) {
+    env e;
+    accrueVault(e, epochId, vault);
+    assert getVaultTimeLeftToAccrue(e, epochId, vault) == 0;
+}
+
+rule userTimeLeftToAccrue_Zero_After_Accruement(uint256 epochId, address vault, address user) {
+    env e;
+    accrueUser(e, epochId, vault, user);
+    assert getUserTimeLeftToAccrue(e, epochId, vault, user) == 0;
+}
