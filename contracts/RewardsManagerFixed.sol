@@ -8,7 +8,8 @@ import {ReentrancyGuard} from "@oz/security/ReentrancyGuard.sol";
 
 
 /// @dev I've updated some interfaces and implementation logic of the contract 
-/// to improve the readability and make it less error-prone hopefully.
+/// to improve the readability and make it less error-prone hopefully. 
+/// Over 600 lines of code has been reduced to less than 500 lines
 ///
 /// 1. The notifyTransfer function uses zero address value as an indicator of actual logic to be invoked.
 /// This is error-prone for both the caller and the callee.
