@@ -62,7 +62,7 @@ contract RewardsManagerFixed is ReentrancyGuard {
 
     /// @dev Sets the new epoch
     /// @notice Accruing is not necessary, it's just a convenience for end users
-    function startNextEpoch() external {
+    function startNextEpoch() public {
         require(block.timestamp > epochs[currentEpoch].endTimestamp); // dev: !ended
         uint256 newEpochId = ++currentEpoch;
 
@@ -362,6 +362,9 @@ contract RewardsManagerFixed is ReentrancyGuard {
 
     /// @dev handles a deposit for vault, to address of amount
     function notifyDeposit(address to, uint256 amount) external {
+        if (block.timestamp > epochs[currentEpoch].endTimestamp) {
+            startNextEpoch();
+        }
         address vault = msg.sender;
         accrueUser(currentEpoch, vault, to);
         accrueVault(currentEpoch, vault); // We have to accrue vault as totalSupply is gonna change
@@ -374,6 +377,9 @@ contract RewardsManagerFixed is ReentrancyGuard {
 
     /// @dev handles a withdraw for vault, from address of amount
     function notifyWithdrawal(address from, uint256 amount) external {
+        if (block.timestamp > epochs[currentEpoch].endTimestamp) {
+            startNextEpoch();
+        }
         address vault = msg.sender;
         accrueUser(currentEpoch, vault, from);
         accrueVault(currentEpoch, vault); // We have to accrue vault as totalSupply is gonna change
@@ -387,6 +393,9 @@ contract RewardsManagerFixed is ReentrancyGuard {
 
     /// @dev handles a transfer for vault, from address to address of amount
     function notifyTransfer(address from, address to, uint256 amount) internal {
+        if (block.timestamp > epochs[currentEpoch].endTimestamp) {
+            startNextEpoch();
+        }
         require (from != to, "Transfer from and to the same address");
         address vault = msg.sender;
         accrueUser(currentEpoch, vault, from);

@@ -211,3 +211,9 @@ rule addRewardRevert_at_EpochZero(uint epochId, address vault, address token, ui
     addReward@withrevert(e, epochId, vault, token, amount);
     assert epochId == 0 => lastReverted;
 }
+
+rule notifyTransfer_only_currentEpoch(address from, address to, uint256 amount) {
+    env e;
+    notifyTransfer(e, from, to, amount);
+    assert e.block.timestamp <= getEpochsEndTimestamp(currentEpoch());
+}
