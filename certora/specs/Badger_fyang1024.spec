@@ -44,7 +44,12 @@ methods {
 	requireNoDuplicates(address) envfree
 	min(uint256, uint256) returns(uint256) envfree
 	tokenBalanceOf(address, address) returns(uint256) envfree
+    contractTokenBalance(address) returns(uint256) envfree
+    contractAddress() returns(address) envfree
 }
+
+invariant epochZero_NotExists()
+    getEpochsEndTimestamp(0) == 0 && getEpochsStartTimestamp(0) == 0
 
 // check correctness of startNextEpoch() method
 rule startNextEpochCheck() {
@@ -136,4 +141,73 @@ rule userTimeLeftToAccrue_Zero_After_Accruement(uint256 epochId, address vault, 
     env e;
     accrueUser(e, epochId, vault, user);
     assert getUserTimeLeftToAccrue(e, epochId, vault, user) == 0;
+}
+
+rule shares_totalSupply_Increase_After_Deposit(address vault, address user, uint256 amount) {
+    uint256 epochId = currentEpoch();
+    uint256 sharesBefore = getShares(epochId, vault, user);
+    uint256 totalSupplyBefore = getTotalSupply(epochId, vault);
+
+    env e;
+    handleDeposit(e, vault, user, amount);
+
+    uint256 sharesAfter = getShares(epochId, vault, user);
+    uint256 totalSupplyAfter = getTotalSupply(epochId, vault);
+
+    assert sharesAfter == sharesBefore + amount;
+    assert totalSupplyAfter == totalSupplyBefore + amount;
+}
+
+rule shares_totalSupply_Decrease_After_Withdrawal(address vault, address user, uint256 amount) {
+    uint256 epochId = currentEpoch();
+    uint256 sharesBefore = getShares(epochId, vault, user);
+    uint256 totalSupplyBefore = getTotalSupply(epochId, vault);
+
+    env e;
+    handleWithdrawal(e, vault, user, amount);
+
+    uint256 sharesAfter = getShares(epochId, vault, user);
+    uint256 totalSupplyAfter = getTotalSupply(epochId, vault);
+
+    assert sharesAfter == sharesBefore - amount;
+    assert totalSupplyAfter == totalSupplyBefore - amount;
+}
+
+rule shares_totalSupply_Check_After_Transfer(address vault, address from, address to, uint256 amount) {
+    uint256 epochId = currentEpoch();
+    uint256 fromSharesBefore = getShares(epochId, vault, from);
+    uint256 toSharesBefore = getShares(epochId, vault, to);
+    uint256 totalSupplyBefore = getTotalSupply(epochId, vault);
+
+    env e;
+    handleTransfer(e, vault, from, to, amount);
+
+    uint256 fromSharesAfter = getShares(epochId, vault, from);
+    uint256 toSharesAfter = getShares(epochId, vault, to);
+    uint256 totalSupplyAfter = getTotalSupply(epochId, vault);
+
+    assert from != to => (fromSharesAfter == fromSharesBefore - amount && toSharesAfter == toSharesBefore + amount);
+    assert from == to => fromSharesAfter == fromSharesBefore && toSharesAfter == toSharesBefore;
+    assert totalSupplyAfter == totalSupplyBefore;
+}
+
+rule addRewardCheck(uint256 epochId, address vault, address token, uint256 amount) {
+    uint256 rewardsBefore = getRewards(epochId, vault, token);
+    uint256 tokenBalanceBefore = contractTokenBalance(token);
+
+    env e;
+    require e.msg.sender != contractAddress();
+    addReward(e, epochId, vault, token, amount);
+
+    uint256 rewardsAfter = getRewards(epochId, vault, token);
+    uint256 tokenBalanceAfter = contractTokenBalance(token);
+
+    assert rewardsAfter == rewardsBefore + amount;
+    assert tokenBalanceAfter == tokenBalanceBefore + amount;
+}
+
+rule addRewardRevert_at_EpochZero(uint epochId, address vault, address token, uint256 amount) {
+    env e;
+    addReward@withrevert(e, epochId, vault, token, amount);
+    assert epochId == 0 => lastReverted;
 }

@@ -77,6 +77,11 @@ contract RewardsManagerHarness is RewardsManager {
     }
 
     // space to create your own destiny 
+    function contractTokenBalance(address token) public returns (uint256) {
+        return IERC20(token).balanceOf(address(this));
+    }
 
-
+    function contractAddress() public returns (address) {
+        return address(this);
+    }
 }

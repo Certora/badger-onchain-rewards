@@ -43,9 +43,10 @@ External and public functions:
 14. `claimBulkTokensOverMultipleEpochsOptimized` - bulk claim rewards and reset user data
 
 ## Property List
-1. ***High-level property*** - (epochId_1 < epochId_2 && epochId <= currentEpoch) <=> epochs[epochId_1].endTimestamp < epochs[epochId_2].startTimestamp
-2. ***High-level property*** - currentEpoch > 0 => epochs[currentEpoch].startTimestamp + 604800 = epochs[currentEpoch].endTimestamp
-3. ***High-level property*** - currentEpoch > 0 => epochs[currentEpoch].startTimestamp <= block.timestamp
+1. ***High-level property*** - Epoch 0 does not exists
+2. ***High-level property*** - (epochId_1 < epochId_2 && epochId <= currentEpoch) <=> epochs[epochId_1].endTimestamp < epochs[epochId_2].startTimestamp
+3. ***High-level property*** - currentEpoch > 0 => epochs[currentEpoch].startTimestamp + 604800 = epochs[currentEpoch].endTimestamp
+4. ***High-level property*** - currentEpoch > 0 => epochs[currentEpoch].startTimestamp <= block.timestamp
 5. ***High-level property*** - shares[epochId][vault][user]) <= totalSupply[epochId][vault]
 6. ***High-level property*** - pointsWithdrawn[epochId][vault][user][token] <= points[epochId][vault][user]
 7. ***Variable transition*** - currentEpoch should increment by 1 after startNextEpoch
