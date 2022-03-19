@@ -391,10 +391,10 @@ contract RewardsManagerFixed is ReentrancyGuard {
 
     /// @dev handles a transfer for vault, from address to address of amount
     function notifyTransfer(address from, address to, uint256 amount) internal {
+        require (from != to, "Transfer from and to the same address");
         if (block.timestamp > epochs[currentEpoch].endTimestamp) {
             startNextEpoch();
         }
-        require (from != to, "Transfer from and to the same address");
         address vault = msg.sender;
         accrueUser(currentEpoch, vault, from);
         accrueUser(currentEpoch, vault, to);
