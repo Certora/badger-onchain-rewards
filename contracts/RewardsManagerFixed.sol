@@ -57,9 +57,6 @@ contract RewardsManagerFixed is ReentrancyGuard {
     // User share of token X is equal to tokensForEpoch * points[epochId][vaultId][userAddress] / totalPoints[epochId][vaultAddress]
     // You accrue one point per second for each second you are in the vault
 
-
-
-
     mapping(uint256 => mapping(address => mapping(address => uint256))) public rewards; // rewards[epochId][vaultAddress][tokenAddress] = AMOUNT
 
     /// @dev Sets the new epoch
