@@ -21,7 +21,7 @@ import {ReentrancyGuard} from "@oz/security/ReentrancyGuard.sol";
 /// 3. The getTotalSupplyAtEpoch and getBalanceAtEpoch functions are unnecessarily complicated. They are refactored and renamed
 /// to totalSupplyAtEpoch and balanceAtEpoch respectively, as they are not view functions anymore.
 ///
-/// 4. Refactored getTimeLeftToAccrue and getUserTimeLeftToAccrue functions
+/// 4. Refactored accrueVault, accrueUser, getTimeLeftToAccrue and getUserTimeLeftToAccrue functions
 ///
 /// 5. require the epochId > 0 in addReward function
 contract RewardsManagerFixed is ReentrancyGuard {
@@ -386,8 +386,7 @@ contract RewardsManagerFixed is ReentrancyGuard {
         accrueUser(currentEpoch, vault, from);
         accrueVault(currentEpoch, vault); // We have to accrue vault as totalSupply is gonna change
 
-        // Delete last shares
-        // Delete deposit data or user
+        // Reduce shares
         shares[currentEpoch][vault][from] -= amount;
         // Reduce totalSupply
         totalSupply[currentEpoch][vault] -= amount;
