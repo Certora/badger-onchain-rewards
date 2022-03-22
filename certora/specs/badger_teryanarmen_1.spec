@@ -1,6 +1,6 @@
 import "reward_manager_methods.spec"
 
-//
+// rules and invariants in this spec are wip
 
 function claimMethods(uint256 epoch, address vault, address user, address token, method f, env e) {
     if (f.selector == claimReward(uint256, address, address, address).selector) {
