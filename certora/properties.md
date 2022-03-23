@@ -8,11 +8,11 @@ Rewards Manager is a complex system compared to systems seen during the workshop
 The states of the system are defined by: 
 
 1. `epoch` - 7 days. This measure is used to divide the rewards in discrete equal periods.  
-2. `vault` - a vault is defined by an asset which can be any ERC20 token.
+2. `vault` - a vault external contract that handles vault accounting.
 3. `user` - address of the user.
 4. `token` - address of some reward token.
 4. `shares` - the user balance in the vault.
-5. `points` - a score system measuring user's loyalty to a specific vault.
+5. `points` - points to track user rewards share.
 6. `pointsWithdrawn` - measure the amount of points withdrawn by the user so far for epoch, vault, user, token.
 7. `totalPoints` - sum of all points over users.
 8. `rewards` - total rewards for the vault.
@@ -21,10 +21,10 @@ The states of the system are defined by:
 11. `totalSupply` - tracks the sum of all deposits for a vault at an epoch and used to measure the share of rewards of a user.
 12. `lastVaultDeposit` - unused mapping.
 
-The transition between states depends on the correct implementation of the functions: 
-1. `startNextEpoch` - only function responsible of updating `epochs` state.
+The transition between states depends on the correct implementation of these functions: 
+1. `startNextEpoch` - only function responsible of updating `epochs` struct and `currentEpoch`.
 2. `addReward` and `addRewards`  - only functions responsible of updating `rewards` state.
-3. `notifyTransfer` - update `shares` and `totalSupply` after a transaction.
+3. `notifyTransfer` - update `shares` and `totalSupply` after a transaction is recorded in the vault.
 4. `getTotalSupplyAtEpoch` - compute `totalSupply` for the corresponding epoch, vault.
 5. `getBalanceAtEpoch` - compute `shares` for the corresponding epoch, vault, user.
 6. `getVaultTimeLeftToAccrue` return the time left to accrue for the epoch, vault pair.
@@ -32,15 +32,15 @@ The transition between states depends on the correct implementation of the funct
 8. `accrueUser` complex function updates: `shares`, `lastUserAccrueTimestamp`, `points` for epoch, vault, user.
 9. `accrueVault` complex function updates: `totalSupply`, `lastAccruedTimestamp`, `totalPoints` for epoch, vault.
 10. `claimReward` and `claimRewards`-  allow user to claim rewards and updates `pointsWithdrawn` for epoch, vault, token, user.
-11. `claimBulkTokensOverMultipleEpochs` - Bulk claim all rewards for one vault over from epochStart to epochEnd, requires user has not withdrawn in any previous epoch between epochStart to epochEnd.
-12. `claimBulkTokensOverMultipleEpochsOptimized` - Gas optimizer version of the previous function that deletes some `shares` and `points`.
+11. `claimBulkTokensOverMultipleEpochs` - Bulk claim all rewards for one vault from epochStart to epochEnd, requires user has not withdrawn in any previous epoch between epochStart to epochEnd.
+12. `claimBulkTokensOverMultipleEpochsOptimized` - Gas optimized version of the previous function that deletes some `shares` and `points` mappings.
 
 
 
 The state variables updates:
 1. `currentEpoch` - only updated by `startNextEpoch`, it is always incremented by 1.
 2. `epochs` - only updated by `startNextEpoch`, always the new `endTime` = new `startTime` + 1 week and new `startTime` = block.timestamp.
-3. `shares` - It's updated in : `notifyTransfer`, `accrueUser` and `claimBulkTokensOverMultipleEpochsOptimized`. The value is correlated with tokens of the user held in the particular vault, but that's outside the scope of the contract.
+3. `shares` - It's updated in : `notifyTransfer`, `accrueUser` and `claimBulkTokensOverMultipleEpochsOptimized`. The value is correlated with tokens of the user held in the particular vault, but that accounting part is left to the vault contract itself.
 4. `points` - It's updated in : `accrueUser` and `claimBulkTokensOverMultipleEpochsOptimized`. `accrueUser` increase `points`, `claimBulkTokensOverMultipleEpochsOptimized` make it zero. It's value is correlated to `share`
 5. `pointsWithdrawn` - It's updated in : `claimReward***` functions. It is non decreasing, and can only surpass `points` if `claimBulkTokensOverMultipleEpochsOptimized` was called
 6. `totalPoints` - It's updated in : `accrueUser` and `claimBulkTokensOverMultipleEpochsOptimized`. `accrueUser` increase `points`, `claimBulkTokensOverMultipleEpochsOptimized` make it zero. It's value is correlated to `share` and should always be greater than sum of `points`.
@@ -54,7 +54,7 @@ The state variables updates:
 
 
 ## Epoch properties
-1. ***High-level property*** - Epoch start from 1.
+1. ***High-level property*** - Future Epochs non initialized : currentEpoch < epoch > 0 => epochs[epoch].startTimestamp  = epochs[epoch].endTimestamp = 0
 2. ***State transition*** - Next epoch can only start after epochs[currentEpoch].endTimestamp
 3. ***High-level property*** - currentEpoch >= epoch > 0 => epochs[epoch].startTimestamp + 604800 = epochs[epoch].endTimestamp
 4. ***High-level property*** - currentEpoch >= epoch > 0  => epochs[epoch].startTimestamp <= block.timestamp
@@ -71,11 +71,12 @@ Note: Rules for properties 1-4 verified in the spec
 
 
 ## Points and PointsWithdrawn and TotalPoints properties
-8. ***High-level property*** - points[epochId][vault][user] <= totalPoints[epochId][vault]
 8. ***High-level property*** - Sum of ( points[epochId][vault][user], user) <= totalPoints[epochId][vault]
+9. ***High-level property*** - `pointsWithdrawn` are non decreasing after a function call other than `claimBulkTokensOverMultipleEpochsOptimized`
 10. ***High-level property*** - future `totalPoints` and `points` are non initialized : epoch > currentEpoch => totalPoints[epochId][vault] = points[epochId][vault][user] = 0
 11. ***High-level property*** - pointsWithdrawn[epochId][vault][user][token] <= points[epochId][vault][user] unless `claimBulkTokensOverMultipleEpochsOptimized` was walled.
 12. ***Variable transition***  - `pointsWithdrawn` are non decreasing.
+
 
 
 ## Accrued Timestamp properties
