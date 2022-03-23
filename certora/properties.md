@@ -82,7 +82,7 @@ Note: Rules for properties 1-4 verified in the spec
 ## Accrued Timestamp properties
 13. ***Variable transition***  - `lastAccruedTimestamp`  is non decreasing.
 14. ***Variable transition***  - `lastUserAccruedTimestamp`  is non decreasing.
-15. ***Variable transition***  - `lastAccruedTimestamp` = block.timestamp after `accrueVault` is called.
+15. ***Variable transition***  - `lastVaultAccruedTimestamp` = block.timestamp after `accrueVault` is called.
 16. ***Variable transition***  - `lastUserAccruedTimestamp` = block.timestamp after `accrueUser` is called.
 17. ***High-level property*** - future `lastAccruedTimestamp` and `lastUserAccruedTimestamp` are non initialized : epoch > currentEpoch => lastAccruedTimestamp[epochId][vault] = lastUserAccruedTimestamp[epochId][vault][user] = 0
 
@@ -142,5 +142,12 @@ Note: Rules for properties 1-4 verified in the spec
 42. `claimBulkTokensOverMultipleEpochs` correctly update `pointsWithdrawn`, `points`, `shares` and user balances.
 
 
+### handleDeposit, handleWithdrawal and handleTransfer unit test
+43. `handleDeposit` correctly update `shares` and `totalSupply`.
+44. `handleWithdrawal` correctly update `shares` and `totalSupply`
+45. `handleTransfer` correctly update `shares` .
 
+
+### requireNoDuplicates unit test
+46. `requireNoDuplicates` correctly reverts.
 

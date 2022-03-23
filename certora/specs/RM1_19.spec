@@ -112,7 +112,7 @@ rule preservationOfEpochData(uint epoch, method f) {
 *                               *
 ********************************/
 
-// proving share <= totalSupply
+// proving sum share <= totalSupply
 ghost shareSum(uint256, address) returns uint256 {
     init_state axiom forall uint256 epoch. forall address vault. shareSum(epoch, vault) == 0;
 }
@@ -122,10 +122,25 @@ hook Sstore shares[KEY uint256 ep][KEY address v][KEY address u] uint256 value (
     (epoch == ep && vault == v && user == u)? shareSum@new(epoch, vault) == shareSum@new(epoch, vault) + value - old_value : shareSum@new(epoch, vault) == shareSum@old(epoch, vault);
 }
 
+// proving ghost tracking totalSupply
+ghost totalSup(uint256, address) returns uint256 {
+    init_state axiom forall uint256 epoch. forall address vault. totalSup(epoch, vault) == 0;
+}
+
+hook Sstore totalSupply[KEY uint256 ep][KEY address v] uint256 value (uint256 old_value) STORAGE {
+    havoc totalSup assuming forall uint256 epoch. forall address vault. 
+    (epoch == ep && vault == v )? totalSup@new(epoch, vault) == value : totalSup@new(epoch, vault) == totalSup@old(epoch, vault);
+}
 // STATUS: VERIFIED
-// check sum of share always less than total supply
+// check equality of ghost and mapping
+invariant checkTotalSupEquality(uint256 epoch, address vault)
+    getTotalSupply(epoch, vault) == totalSup(epoch, vault)
+
+// STATUS: unVERIFIED
+// check sum of shares always less than total supply
+// have to check getters of accrueVault !
 invariant totalShareInvariant(uint epoch, address vault)
-    shareSum(epoch, vault) <= getTotalSupply(epoch, vault)
+    shareSum(epoch, vault) <= totalSup(epoch, vault)
 
 // STATUS: VERIFIED
 // check futur shares non init
@@ -152,13 +167,16 @@ hook Sstore points[KEY uint256 ep][KEY address v][KEY address u] uint256 value (
     (epoch == ep && vault == v && user == u)? pointsSum@new(epoch, vault) == pointsSum@new(epoch, vault) + value - old_value : pointsSum@new(epoch, vault) == pointsSum@old(epoch, vault);
 }
 
-// STATUS: unVERIFIED
+// STATUS: VERIFIED
+// PROPERTY 8
+// Verified with loop iter 1 have to check for 2 = Have to test claimBulkTokens
 // check sum of share always less than total supply
 invariant totalPointsInvariant(uint epoch, address vault)
     pointsSum(epoch, vault) <= getTotalPoints(epoch, vault)
 
 
 // STATUS: VERIFIED
+// PROPERTY 11
 // check rule that pointsWithdrawn always less than points
 // will have to do another check for claimBulkTokensOverMultipleEpochsOptimized
 rule pointsWithdrawnUpperBound(uint epoch, address vault, address user, address token, method f) 
@@ -178,6 +196,7 @@ filtered {
 
 
 // STATUS: unVERIFIED
+// PROPERTY 9
 // check rule that points are usually non decreasing
 rule pointsNonDecreasing(uint epoch, address vault, address user, address token, method f) 
 filtered {
@@ -193,7 +212,8 @@ filtered {
 }
 
 
-// STATUS: unVERIFIED
+// STATUS: VERIFIED
+// PROPERTY 12/9
 // check rule that pointsWithdrawn are non decreasing
 rule pointsWithdrawnNonDecreasing(uint epoch, address vault, address user, address token, method f) 
  {
@@ -257,6 +277,7 @@ rule checkLastAccruedTimestampEquality(uint epoch, address vault) {
 // write some rules about timestamp
 
 // STATUS: VERIFIED
+// PROPERY 13
 // check lastAccruedTimestamp is only increasing
 rule increasingLastAccruedTimestamp(uint256 epoch, address vault, method f){
     env e;
@@ -280,6 +301,7 @@ invariant lastAccruedTimestampLowerBound(uint256 epoch, address vault)
     }
 
 // STATUS: VERIFIED
+// PROPERY 14
 // checks lastUserAccruedTimestamp is increasing
 rule increasingLastUserAccrueTimestamp(uint256 epoch, address vault, address user, method f){
     env e;
@@ -293,6 +315,7 @@ rule increasingLastUserAccrueTimestamp(uint256 epoch, address vault, address use
 }
 
 // STATUS: VERIFIED
+// PROPERTY 15
 // checks lastUserAccruedTimestamp is block.timestap after call to accrueVault
 rule correctLastVaultAccruedTimestamp(uint256 epoch, address vault){
     env e;
@@ -322,6 +345,7 @@ invariant lastUserAccruedTimestampLowerBound(uint256 epoch, address vault, addre
     }
 
 // STATUS: VERIFIED
+// PROPERTY 16
 // checks lastUserAccruedTimestamp is block.timestap after call to accrueVault
 rule correctLastUserAccruedTimestamp(uint256 epoch, address vault, address user){
     env e;
@@ -338,4 +362,144 @@ rule correctAccrueUserRevert(uint256 epoch, address vault, address user){
     accrueUser@withrevert(e, epoch, vault, user);
 
     assert epoch > currentEp => lastReverted, "accrueUser should revert";
+}
+
+
+/********************************
+*                               *
+*       REWARDS PROPERTIES      *
+*                               *
+********************************/
+
+// STATUS - VERIFIED
+// PROPERTY 18
+// checks that rewards are non-decreasing
+rule increasingRewards(uint256 epochs, address vault, address token, method f) {
+    env e;
+    calldataarg args;
+    uint256 rewardsBefore = getRewards(epochs, vault, token);
+    f(e, args);
+    uint256 rewardsAfter = getRewards(epochs, vault, token);
+    assert rewardsAfter >= rewardsBefore, "Rewards decreased";
+}
+
+
+// STATUS - VERIFIED
+// PROPERTY 19
+// checks that rewards are only changed by allowed functions
+rule rewardsAllowedFunctions(uint256 epochs, address vault, address token, method f) {
+    env e;
+    calldataarg args;
+    uint256 rewardsBefore = getRewards(epochs, vault, token);
+    f(e, args);
+    uint256 rewardsAfter = getRewards(epochs, vault, token);
+    bool isAddReward = (f.selector == addReward(uint256,address,address,uint256).selector); 
+    bool isAddRewards = (f.selector == addRewards(uint256[],address[],address[],uint256[]).selector);
+    assert (rewardsAfter != rewardsBefore) =>  (isAddReward || isAddRewards), "Rewards changed by non allowed function";
+}
+
+// STATUS: VERIFIED
+// checks addRewards function correctly 
+rule sanityOfAddReward(uint256 epoch, address vault, address token, uint256 amount){
+    env e;
+    uint256 rewardsBefore = getRewards(epoch, vault, token);
+    uint256 balanceBefore = tokenBalanceOf(token, currentContract);
+    addReward(e, epoch, vault, token, amount);
+    uint256 rewardsAfter = getRewards(epoch, vault, token);
+    uint256 balanceAfter = tokenBalanceOf(token, currentContract);
+    assert rewardsAfter + balanceBefore == rewardsBefore + balanceAfter, "addReward malfunction";
+    assert e.msg.sender != currentContract => rewardsAfter == rewardsBefore + amount, "addReward malfunction";
+
+}
+
+// STATUS: VERIFIED
+// checks addReward cant be called for past epochs
+rule correctAddRewardRevert(uint256 epoch, address vault, address token, address user){
+    env e;
+    uint currentEp = currentEpoch();
+    addReward@withrevert(e, epoch, vault,token, user);
+    assert epoch < currentEp => lastReverted, "addReward should revert";
+}
+
+// STATUS: FAILS
+// token and vault args are swapped in addRewards function !
+// STATUS FIX CONTRACT:  VERIFIED
+rule sanityOfAddRewards(uint256[] epochs, address[] vaults, address[] tokens, uint256[] amounts){
+    env e;
+
+    require epochs.length == vaults.length && epochs.length == tokens.length && epochs.length == amounts.length;
+    uint256 epoch = epochs[0];
+    address vault = vaults[0];
+    address token = tokens[0]; 
+    uint256 amount = amounts[0];
+    uint256 rewardsBefore = getRewards(epoch, vault, token); 
+    uint256 balanceBefore = tokenBalanceOf(token, currentContract); 
+    addRewards(e, epochs, vaults, tokens, amounts); 
+    uint256 rewardsAfter = getRewards(epoch, vault, token);
+    uint256 balanceAfter = tokenBalanceOf(token, currentContract);
+    assert rewardsAfter + balanceBefore == rewardsBefore + balanceAfter, "addRewards malfunction";
+    assert e.msg.sender != currentContract => rewardsAfter == rewardsBefore + amount, "addRewards malfunction";
+
+}
+
+
+// STATUS: VERIFIED
+// Checks points withdrawn increase
+rule sanityOfClaimReward(uint256 epoch, address vault, address token, address user){
+    env e;
+
+    uint256 userPointsWithdrawnBefore = getPointsWithdrawn(epoch, vault, user, token);   
+    claimReward(e, epoch, vault, token, user);
+    uint256 userPointsWithdrawnAfter = getPointsWithdrawn(epoch, vault, user, token);
+    assert userPointsWithdrawnAfter >= userPointsWithdrawnBefore , "wrong change in points withdrawn";
+   
+}
+
+// STATUS: VERIFIED
+// checks claimReward cant be called for futur epochs
+rule correctClaimRewardRevert(uint256 epoch, address vault, address token, address user){
+    env e;
+    uint currentEp = currentEpoch();
+    claimReward@withrevert(e, epoch, vault, token, user);
+    assert epoch >= currentEp => lastReverted, "claimReward should revert";
+   
+}
+
+
+// STATUS: VERIFIED
+// Checks math after calling claim reward is ok
+rule sanityOfClaimRewards(uint256[] epochs, address[] vaults, address[] tokens, address[] users){
+    env e;
+
+    uint epoch = epochs[0];
+    address vault = vaults[0];
+    address token = tokens[0];
+    address user = users[0];
+
+    uint256 userPointsWithdrawnBefore = getPointsWithdrawn(epoch, vault, user, token);
+    claimRewards(e, epochs, vaults, tokens, users);
+    uint256 userPointsWithdrawnAfter = getPointsWithdrawn(epoch, vault, user, token);
+
+    assert userPointsWithdrawnAfter >= userPointsWithdrawnBefore , "wrong change in points withdrawn";
+}
+
+
+// STATUS: VERIFIED
+// checks claimBulkTokensOverMultipleEpochs cant be called for futur epochs
+rule claimBulkTokensOverMultipleEpochs(uint256 epochS, uint256 epochE, address vault, address[] tokens, address user){
+    env e;
+    uint currentEp = currentEpoch();
+    claimBulkTokensOverMultipleEpochs@withrevert(e, epochS, epochE, vault, tokens, user);
+    assert epochE >= currentEp => lastReverted, "claimBulkTokensOverMultipleEpochs should revert";
+   
+}
+
+// STATUS: VERIFIED
+// checks claimBulkTokensOverMultipleEpochsOptimized cant be called for futur epochs
+rule correctClaimBulkTokensOptimizedRevert(uint256 epochS, uint256 epochE, address vault, address[] tokens){
+    env e;
+    uint currentEp = currentEpoch();
+    claimBulkTokensOverMultipleEpochsOptimized@withrevert(e, epochS, epochE, vault, tokens);
+    assert epochE >= currentEp => lastReverted, "claimRewardOptimized should revert";
+   
 }

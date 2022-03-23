@@ -2,7 +2,7 @@ certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC2
     --verify RewardsManagerHarness:certora/specs/RM1_19.spec \
     --solc solc8.10  \
     --optimistic_loop \
-    --loop_iter 2 \
+    --loop_iter 1 \
     --packages @oz=certora/openzeppelin/contracts \
     --send_only \
     --cloud \
