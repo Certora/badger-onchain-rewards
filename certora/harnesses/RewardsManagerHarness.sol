@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.10;
 
-import "../../contracts/RewardsManager.sol";
+import "../../contracts/RewardsManagerFixed.sol";
 
-contract RewardsManagerHarness is RewardsManager {
+contract RewardsManagerHarness is RewardsManagerFixed {
     // public method calls
     function handleDeposit(
         address vault,
@@ -121,4 +121,8 @@ contract RewardsManagerHarness is RewardsManager {
     }
 
     // space to create your own destiny
+
+    function getPrecision() public returns (uint256) {
+        return PRECISION;
+    }
 }
