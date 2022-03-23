@@ -1,3 +1,17 @@
 {
-    "topics": []
+    "topics": [
+        {
+            "name": "type_check",
+            "messages": [
+                {
+                    "message": "Syntax error in spec file (Badger_mehul_1.spec:85:5): could not type expression \"epochs(epoch1)\", message: Could not find an overloading of method epochs that matches the given arguments: uint256. Method is not envfree; did you forget to provide the environment as the first function argument?",
+                    "location": []
+                },
+                {
+                    "message": "Syntax error in spec file (Badger_mehul_1.spec:91:5): could not type expression \"epochs(epoch2)\", message: Could not find an overloading of method epochs that matches the given arguments: uint256. Method is not envfree; did you forget to provide the environment as the first function argument?",
+                    "location": []
+                }
+            ]
+        }
+    ]
 }
