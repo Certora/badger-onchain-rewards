@@ -72,24 +72,27 @@ hook Sstore epochs[KEY uint256 ep].endTimestamp uint256 value (uint256 old_value
 
 //Invariant : New epoch should start after previous epoch is over
 definition sequentialEpoch (uint256 epoch) returns bool =
-    epEnd(epoch) - epStart(epoch) == 604800 
-    && (epoch < currentEpoch() => epEnd(epoch) < epStart(to_uint256(epoch+1)))
+    getEpochsEndTimestamp(epoch) - getEpochsStartTimestamp(epoch) == 604800 
+    && (epoch < currentEpoch() => getEpochsEndTimestamp(epoch) < getEpochsStartTimestamp(to_uint256(epoch+1)))
     ;
 
 definition epochNotStarted (uint256 epoch) returns bool =
     epoch > currentEpoch()
-    && epStart(epoch) == 0
-    && epEnd(epoch) == 0
+    && getEpochsStartTimestamp(epoch) == 0
+    && getEpochsEndTimestamp(epoch) == 0
     ;
 
+invariant epochSequential(uint256 epoch)
+    sequentialEpoch(epoch) || epochNotStarted(epoch)
+
 // Because line 93 in RewardsManager updates currentEpoch first, this cannot be an invariant :/
-rule epochSequential(uint256 epoch, method f) filtered {f -> f.isView} {
-    require(sequentialEpoch(epoch) || epochNotStarted(epoch));
-    env e;
-    calldataarg args;
-    f(e, args);
-    assert(sequentialEpoch(epoch) || epochNotStarted(epoch), "Epochs should be strictly sequential");
-}
+// rule epochSequential(uint256 epoch, method f) filtered {f -> f.isView} {
+//     require(sequentialEpoch(epoch) || epochNotStarted(epoch));
+//     env e;
+//     calldataarg args;
+//     f(e, args);
+//     assert(sequentialEpoch(epoch) || epochNotStarted(epoch), "Epochs should be strictly sequential");
+// }
 
 // currentEpoch should never decrease
 rule nonDecreasingCurrentEpoch(method f) filtered {f -> !f.isView}{
@@ -103,40 +106,108 @@ rule nonDecreasingCurrentEpoch(method f) filtered {f -> !f.isView}{
         "Epoch can only be changed by startNextEpoch by a single step");
 }
 
+// for any environment, block timestamp should be after currentEpoch's start time
+invariant validBlockTimestamp(env e)
+    e.block.timestamp >= getEpochsStartTimestamp(currentEpoch())
 
-// Reward rules
-// rewards mapping should not be reduced under any circumstances
-// Otherwise, someone transferred rewards out through addRewards function
-// or wrote a value they shouldn't be able to write
-rule nonDecreasingRewards (uint256 epochId, address vault, address token, method f)  filtered {f -> !f.isView}{
-    uint256 before = getRewards(epochId, vault, token);
-    env e;
-    calldataarg args;
-    f(e, args);
-    uint256 after = getRewards(epochId, vault, token);
-    assert(before <= after);
+
+// // Reward rules
+// // rewards mapping should not be reduced under any circumstances
+// // Otherwise, someone transferred rewards out through addRewards function
+// // or wrote a value they shouldn't be able to write
+// rule nonDecreasingRewards (uint256 epochId, address vault, address token, method f)  filtered {f -> !f.isView}{
+//     uint256 before = getRewards(epochId, vault, token);
+//     env e;
+//     calldataarg args;
+//     f(e, args);
+//     uint256 after = getRewards(epochId, vault, token);
+//     assert(before <= after);
+// }
+
+// rule rewardsMatchCalculation(
+//         address user, 
+//         address vault, 
+//         uint256 epoch, 
+//         address token, 
+//         uint256 amount){
+
+//     env e1; env e2;
+
+//     addReward(e1, epoch, vault, token, amount);
+//     uint256 firstRewards = getRewards(epoch, vault, token);
+//     uint256 balanceBefore = tokenBalanceOf(token, user);
+
+//     uint256 userRewards = getEligibleRewardsForAmount(epoch, vault, token, user, amount);
+
+//     claimReward(e2, epoch, vault, token, user);
+//     uint256 balanceAfter = tokenBalanceOf(token, user); 
+
+//     assert(
+//         firstRewards == amount // Rewards added correctly
+//         && (balanceAfter - balanceBefore == userRewards) // user balance is correct
+//     );
+// }
+
+
+// 
+
+// last Accrue times
+ghost timeLastAccrueUser(uint256, address, address) returns uint256 {
+    init_state axiom forall uint256 epoch. forall address user. forall address vault.
+    timeLastAccrueUser(epoch, vault, user) == 0;
 }
 
-rule rewardsMatchCalculation(
-        address user, 
-        address vault, 
-        uint256 epoch, 
-        address token, 
-        uint256 amount){
+ghost timeLastAccrueVault(uint256, address) returns uint256 {
+    init_state axiom forall uint256 epoch. forall address vault.
+    timeLastAccrueVault(epoch, vault) == 0;
+}
 
-    env e1; env e2;
+hook Sstore lastUserAccrueTimestamp[KEY uint256 epoch][KEY address vault][KEY address user] uint256 value (uint256 old_value) STORAGE {
+    havoc timeLastAccrueUser assuming timeLastAccrueUser@new(epoch, vault, user) == value;
+}
 
-    addReward(e1, epoch, vault, token, amount);
-    uint256 firstRewards = getRewards(epoch, vault, token);
-    uint256 balanceBefore = tokenBalanceOf(token, user);
+hook Sstore lastAccruedTimestamp[KEY uint256 epoch][KEY address vault] uint256 value (uint256 old_value) STORAGE {
+    havoc timeLastAccrueVault assuming timeLastAccrueVault@new(epoch, vault) == value;
+}
 
-    uint256 userRewards = getEligibleRewardsForAmount(epoch, vault, token, user, amount);
+// Accrue time rules : If updated, it should point to current time
+rule lastVaultAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vault,  method f){
+    env e; 
+    requireInvariant validBlockTimestamp(e);
+    uint256 before = timeLastAccrueVault(epoch, vault);
+    calldataarg args;
+    f(e, args);
+    uint256 after = timeLastAccrueVault(epoch, vault);
+    assert ((before == after) || getEpochsStartTimestamp(currentEpoch()) < after);
+}
 
-    claimReward(e2, epoch, vault, token, user);
-    uint256 balanceAfter = tokenBalanceOf(token, user); 
+rule lastUserAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vault, address user,  method f){
+    env e; 
+    requireInvariant validBlockTimestamp(e);
+    uint256 before = timeLastAccrueUser(epoch, vault, user);
+    calldataarg args;
+    f(e, args);
+    uint256 after = timeLastAccrueUser(epoch, vault, user);
+    assert ((before == after) || getEpochsStartTimestamp(currentEpoch()) < after);
+}
 
-    assert(
-        firstRewards == amount // Rewards added correctly
-        && (balanceAfter - balanceBefore == userRewards) // user balance is correct
-    );
+// lastAccrueTimestamp non-decreasing
+rule nonDecreasingLastAccruedTimestamp(uint256 epoch, address vault, method f){
+    env e;
+    requireInvariant validBlockTimestamp(e);
+    uint256 before = timeLastAccrueVault(epoch, vault);
+    calldataarg args;
+    f(e, args);
+    uint256 after = timeLastAccrueVault(epoch, vault);
+    assert(before <= after, "lastAccruedTimestamp decreased");
+}
+
+rule nonDecreasingLastUserAccrueTimestamp(uint256 epoch, address vault, address user, method f){
+    env e;
+    requireInvariant validBlockTimestamp(e);
+    uint256 before = timeLastAccrueUser(epoch, vault, user);
+    calldataarg args;
+    f(e, args);
+    uint256 after = timeLastAccrueUser(epoch, vault, user);
+    assert(before <= after, "lastAccrueUserTimestamp decreased");
 }

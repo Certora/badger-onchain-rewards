@@ -135,6 +135,7 @@ rule sumOfUserBalancesShouldMatchTotalSupply(uint256 epoch, address vault, addre
     requireInvariant epochSequential(epoch);
     require(userShareSum(epoch, vault) == getTotalSupply(epoch, vault));
     env e; calldataarg args;
+    require(e.msg.sender != 0);
     f(e, args);
     assert(userShareSum(epoch, vault) == getTotalSupply(epoch, vault));
 }
