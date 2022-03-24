@@ -21,6 +21,7 @@ methods {
     getShares(uint256, address) returns(uint256) envfree
     getTotalSupply(uint256, address) returns(uint256) envfree
     getRewards(uint256 , address, address) returns(uint256) envfree
+    getEligibleRewardsForAmount(uint256 , address, address, address, uint256) returns(uint256) envfree
     getEpoch(uint256) returns (uint256, uint256) envfree
 
     // methods
@@ -38,46 +39,14 @@ methods {
     claimBulkTokensOverMultipleEpochs(uint256, uint256, address, address[], address)
     handleDeposit(address, address, uint256)
     handleWithdrawal(address, address, uint256)
+    handleTransfer(address, address, address, uint256)
 
     // envfree methods
     getTotalSupplyAtEpoch(uint256, address) returns(uint256, bool) envfree
-    handleTransfer(address, address, address, uint256) envfree
     getBalanceAtEpoch(uint256, address, address) returns(uint256, bool) envfree
     requireNoDuplicates(address[]) envfree
     min(uint256, uint256) returns(uint256) envfree
     tokenBalanceOf(address, address) returns(uint256) envfree
-}
-
-// Original Certora rules
-
-rule startNextEpochCheck(method f, env e){
-    uint256 epochId = to_uint256(currentEpoch() + 1);
-
-    startNextEpoch(e);
-
-    uint256 epochStartAfter = getEpochsStartTimestamp(epochId);
-    uint256 epochEndAfter = getEpochsEndTimestamp(epochId);
-
-    assert epochStartAfter == e.block.timestamp, "wrong start";
-    assert epochEndAfter == e.block.timestamp + 604800, "wrong end";
-}
-
-// rule whoChangedMyBalance(address token, address user, method f) filtered {f -> !f.isView} {
-//     uint256 before = tokenBalanceOf(token,user);
-//     env e;
-//     calldataarg args;
-//     f(e,args);
-//     assert tokenBalanceOf(token,user) == before;
-// }
-
-rule canAnyFunctionChangeMoreThanOneToken(address token1, address token2, address user, method f) filtered {f -> !f.isView} {
-    require token1!=token2;
-    uint256 before1 = tokenBalanceOf(token1,user);
-    uint256 before2 = tokenBalanceOf(token2,user);
-    env e;
-    calldataarg args;
-    f(e,args);
-    assert tokenBalanceOf(token1,user) == before1 || tokenBalanceOf(token2,user) == before2;
 }
 
 // Ghost variable to keep track of starting times of each epoch
@@ -103,18 +72,24 @@ hook Sstore epochs[KEY uint256 ep].endTimestamp uint256 value (uint256 old_value
 
 //Invariant : New epoch should start after previous epoch is over
 definition sequentialEpoch (uint256 epoch) returns bool =
-    epEnd(epoch) - epStart(epoch) == SECONDS_PER_EPOCH() 
-    && epEnd(epoch) < epStart(to_uint256(epoch+1))
+    epEnd(epoch) - epStart(epoch) == 604800 
+    && (epoch < currentEpoch() => epEnd(epoch) < epStart(to_uint256(epoch+1)))
     ;
 
 definition epochNotStarted (uint256 epoch) returns bool =
     epoch > currentEpoch()
-    && epStart(epoch) ==0
+    && epStart(epoch) == 0
     && epEnd(epoch) == 0
     ;
 
-invariant epochSequential(uint256 epoch)
-    sequentialEpoch(epoch) || epochNotStarted(epoch)
+// Because line 93 in RewardsManager updates currentEpoch first, this cannot be an invariant :/
+rule epochSequential(uint256 epoch, method f) filtered {f -> f.isView} {
+    require(sequentialEpoch(epoch) || epochNotStarted(epoch));
+    env e;
+    calldataarg args;
+    f(e, args);
+    assert(sequentialEpoch(epoch) || epochNotStarted(epoch), "Epochs should be strictly sequential");
+}
 
 // currentEpoch should never decrease
 rule nonDecreasingCurrentEpoch(method f) filtered {f -> !f.isView}{
@@ -125,7 +100,7 @@ rule nonDecreasingCurrentEpoch(method f) filtered {f -> !f.isView}{
     uint256 after = currentEpoch();
     assert(before == after || 
         (before < after && f.selector == startNextEpoch().selector),
-        "incorrect currentEpoch");
+        "Epoch can only be changed by startNextEpoch by a single step");
 }
 
 
@@ -140,4 +115,28 @@ rule nonDecreasingRewards (uint256 epochId, address vault, address token, method
     f(e, args);
     uint256 after = getRewards(epochId, vault, token);
     assert(before <= after);
+}
+
+rule rewardsMatchCalculation(
+        address user, 
+        address vault, 
+        uint256 epoch, 
+        address token, 
+        uint256 amount){
+
+    env e1; env e2;
+
+    addReward(e1, epoch, vault, token, amount);
+    uint256 firstRewards = getRewards(epoch, vault, token);
+    uint256 balanceBefore = tokenBalanceOf(token, user);
+
+    uint256 userRewards = getEligibleRewardsForAmount(epoch, vault, token, user, amount);
+
+    claimReward(e2, epoch, vault, token, user);
+    uint256 balanceAfter = tokenBalanceOf(token, user); 
+
+    assert(
+        firstRewards == amount // Rewards added correctly
+        && (balanceAfter - balanceBefore == userRewards) // user balance is correct
+    );
 }

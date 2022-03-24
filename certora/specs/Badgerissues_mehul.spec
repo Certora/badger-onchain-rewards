@@ -22,6 +22,8 @@ methods {
     getShares(uint256, address) returns(uint256) envfree
     getTotalSupply(uint256, address) returns(uint256) envfree
     getRewards(uint256 , address, address) returns(uint256) envfree
+    getEligibleRewards(uint256 , address, address, address) returns(uint256) envfree
+
 
     // methods
     startNextEpoch()
@@ -148,37 +150,47 @@ rule sumOfUserBalancesShouldMatchTotalSupply(uint256 epoch, address vault, addre
 // Add reward, call claimReward
 // Checking for loop functions with two tokens should be sufficient
 
-rule rewardsMatchCalculation(address user1, address user2, address vault, uint256 epoch, address token, uint256 amount){
-    env e1; env e2;
-    calldataarg args;
-    bool match = true;
-    require(e2.msg.sender == user2);
-    //require(user1 != user2);
+definition functionNotAddReward(method f) returns bool =
+       f.selector != addReward(uint256, address, address, uint256).selector
+       && f.selector != addRewards(uint256[], address[], address[], uint256[]).selector
+       ;
 
-    uint256 totalPoints = getTotalPoints(epoch, vault);
-    uint256 user1Points = getPoints(epoch, vault, user1);
-    uint256 user1PointsWithdrawn = getPointsWithdrawn(epoch, vault, user1, token);
-    
-    require(user1Points >= user1PointsWithdrawn);
-    require(totalPoints > 0);
+definition functionNotClaimReward(method f) returns bool =
+       f.selector != claimRewards(uint256[], address[], address[], address[]).selector
+       && f.selector != claimReward(uint256, address, address, address).selector
+       ;
+
+rule rewardsMatchCalculation(
+        address user1, 
+        address user2, 
+        address vault, 
+        uint256 epoch, 
+        address token, 
+        uint256 amount,
+        method f1,
+        method f2)
+   filtered {f1 -> !f1.isView, f2-> !f2.isView } {
+    require(functionNotAddReward(f1));
+    require(functionNotClaimReward(f2));
+
+    env e1; env e2; env e3;
+    calldataarg args;
+    calldataarg args2;
+
+    require(e2.msg.sender == user2);
+    require(user1 != user2);
 
     addReward(e1, epoch, vault, token, amount);
     uint256 firstRewards = getRewards(epoch, vault, token);
     uint256 balanceBefore = tokenBalanceOf(token, user1);
-
-    //f(e2, args);
-
-    claimReward(e2, epoch, vault, token, user1);
-
-    uint256 balanceAfter = tokenBalanceOf(token, user1);
-    uint256 finalRewards = getRewards(epoch, vault, token);
-
-    // Calculate reward
-    uint256 ratioForPointsLeft = PRECISION() * (user1Points - user1PointsWithdrawn) / totalPoints;
-    uint256 expectedReward = amount*ratioForPointsLeft/PRECISION();
+    f1(e2, args);
+    uint256 userRewards = getEligibleRewards(epoch, vault, token, user1);
+    f2(e3, args2);
+    claimReward(e3, epoch, vault, token, user1);
+    uint256 balanceAfter = tokenBalanceOf(token, user1); 
 
     assert(
         firstRewards == amount // Rewards added correctly
-        && balanceAfter - balanceBefore == expectedReward // user balance is correct
+        && (balanceAfter - balanceBefore == userRewards) // user balance is correct
     );
 }

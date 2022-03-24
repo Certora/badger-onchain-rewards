@@ -77,7 +77,20 @@ contract RewardsManagerHarness is RewardsManager {
     }
 
     // space to create your own destiny 
-    
+
+    // Same calculation as claimRewards, but without claim, for testing
+    // Amount passed externally to make sure values are correct
+    function getEligibleRewardsForAmount(uint256 epochId, address vault, address token, address user, uint256 amount) public returns (uint256) {
+        uint256 userPoints = points[epochId][vault][user];
+        uint256 vaultTotalPoints = totalPoints[epochId][vault];
+
+        uint256 pointsLeft = userPoints - pointsWithdrawn[epochId][vault][user][token];
+
+        uint256 ratioForPointsLeft = PRECISION * pointsLeft / vaultTotalPoints;
+        uint256 tokensForUser = amount * ratioForPointsLeft / PRECISION;
+        return tokensForUser;
+
+    }
 
 
 }
