@@ -26,6 +26,10 @@ ghost pendingRewards_Token_Ghost(address) returns uint256{
     init_state axiom forall address t. pendingRewards_Token_Ghost(t) == 0;
 }
 
+ghost RewardsPayout_EpochVaultToken_Ghost(uint256, address, address) returns uint256{
+    init_state axiom forall uint256 e. forall address v. forall address t. RewardsPayout_EpochVaultToken_Ghost(e, v, t) == 0;
+}
+
 // Ghost keeping a track of the sum of all user shares in a given epoch and vault. This is updated using the shares hook.
 ghost Sum_Shares_Ghost(uint256, address)returns uint256{
     init_state axiom forall uint256 e. forall address v. Sum_Shares_Ghost(e, v) == 0;
@@ -60,6 +64,15 @@ hook Sstore pointsWithdrawn [KEY uint256 epoch][KEY address vault][KEY address u
     pendingRewards_Token_Ghost@new(t) == pendingRewards_Token_Ghost@old(t) - 
     (((points_withdrawn - old_points_withdrawn)/ total_points_vault_epoch_Ghost(e, v))*Reward_Epoch_Vault_Token_Ghost(e, v, t)):
     (pendingRewards_Token_Ghost@new(t) == pendingRewards_Token_Ghost@old(t));
+    
+    // Sum of all rewards paid out for a give token in a given epoch and vault. Once all users have claimed their rewards in a vault in an epoch,
+    // the total payout should be exactly equal to the rewards of that vault and that epoch.
+    havoc RewardsPayout_EpochVaultToken_Ghost assuming 
+    forall uint256 e. forall address v. forall address t. 
+    (e == epoch && v == vault && t == token)? 
+    RewardsPayout_EpochVaultToken_Ghost@new(e, v, t) == RewardsPayout_EpochVaultToken_Ghost@old(e, v, t) + 
+    (((points_withdrawn - old_points_withdrawn)/ total_points_vault_epoch_Ghost(e, v))*Reward_Epoch_Vault_Token_Ghost(e, v, t)):
+    (RewardsPayout_EpochVaultToken_Ghost@new(e, v, t) == RewardsPayout_EpochVaultToken_Ghost@old(e, v, t));
     }
 
 hook Sstore rewards [KEY uint256 epoch][KEY address vault][KEY address token] uint256 new_rewards(uint256 old_rewards) STORAGE{
@@ -124,7 +137,7 @@ tokenBalanceOf(token, currentContract) >= (getTotalPoints(epoch, vault) - PWSum_
 invariant enoughBalanceToPayRewardsForToken (address token)
 tokenBalanceOf(token, currentContract) >= pendingRewards_Token_Ghost(token)
 
-// rule to verify post-state of enoughBalanceToPayRewardsForToken invariant
+// rule to verify preserve-state of enoughBalanceToPayRewardsForToken invariant
 rule enoughBalanceToPayRewardsForTokenRule(env e, uint256 epoch, address vault, address user, address token, method f) filtered {f -> !f.isView }{
     uint256 tokenBalanceBefore = tokenBalanceOf(token, currentContract);
     uint256 pendingRewardsBefore = pendingRewards_Token_Ghost(token);
@@ -150,6 +163,19 @@ rule enoughBalanceToPayRewardsForTokenRule(env e, uint256 epoch, address vault, 
     assert (tokenBalanceAfter >= pendingRewardsAfter,"token balance less than pending rewards");
 }
 
+
+// Once all the users have claimed rewards for a token in a given epoch and vault, the total reward payout should be equal to the rewards of the 
+// vault and epoch 
+invariant TotalRewardPayoutEqualsRewardsForVaultEpoch (uint256 ep, address vlt, address token)
+getRewards(ep, vlt, token) == RewardsPayout_EpochVaultToken_Ghost(ep, vlt, token)
+{
+    preserved
+    {
+        require forall address user. getPointsWithdrawn(ep, vlt, user, token) > 0;
+    }
+}
+
+
 // In a given epoch and vault, if all the users and the vault have been accrued for the entire duration of the epoch, 
 // sum of all user shares should equal the total supply and sum of all userpoints should be equal to the total points.
 
@@ -169,21 +195,22 @@ getTotalSupply(ep, vlt) == Sum_Shares_Ghost(ep, vlt)
     }
 }
 // Certora internal type error
-rule SumOfUserSharesEqualsTotalSupplyinEpochVaultAfterFullAccrualRule(method f, uint256 epoch, address vault, address user, address token){
-    uint256 totalSupplyBefore = getTotalSupply(epoch, vault);
-    uint256 sumSharesBefore = Sum_Shares_Ghost(epoch, vault);
+rule SumOfUserSharesEqualsTotalSupplyinEpochVaultAfterFullAccrualRule(method f, uint256 epoch, address vault, address token){
+    // uint256 totalSupplyBefore = getTotalSupply(epoch, vault);
+    // uint256 sumSharesBefore = Sum_Shares_Ghost(epoch, vault);
     env e;
     calldataarg args;
     f(e, args);
     require forall address u. getLastUserAccrueTimestamp(epoch, vault, u) >= getEpochsEndTimestamp(epoch);
+    require getLastAccruedTimestamp(epoch, vault) >= getEpochsEndTimestamp(epoch);
     uint256 totalSupplyAfter = getTotalSupply(epoch, vault);
     uint256 sumSharesAfter = Sum_Shares_Ghost(epoch, vault);
-    assert (totalSupplyAfter == sumSharesAfter, "totalSupply is not equal to the sum of user shares after complete accrual of all users and the vault");
+    assert (totalSupplyAfter == sumSharesAfter, "totalSupply is not equal to the sum of user shares after complete accrual of all users in the vault in the epoch");
 }
 
 // invariant for checking that, once the users and the vault have been fully accrued, sum of all user points in a given epoch
 //  and vault is exactly equal to the total points
-invariant SumOfUserPointsEqualsTotalPointsinEpochVault (uint256 ep, address vlt)
+invariant SumOfUserPointsEqualsTotalPointsinEpochVaultAfterFullAccrual (uint256 ep, address vlt)
 getTotalPoints(ep, vlt) == Sum_UserPoints_Ghost(ep, vlt)
 {
     preserved
@@ -191,6 +218,19 @@ getTotalPoints(ep, vlt) == Sum_UserPoints_Ghost(ep, vlt)
         require forall address user. getLastUserAccrueTimestamp(ep, vlt, user) >= getEpochsEndTimestamp(ep);
         require getLastAccruedTimestamp(ep, vlt) >= getEpochsEndTimestamp(ep);
     }
+}
+
+rule SumOfUserPointsEqualsTotalPointsinEpochVaultAfterFullAccrualRule(method f, uint256 epoch, address vault, address token){
+    // uint256 totalSupplyBefore = getTotalSupply(epoch, vault);
+    // uint256 sumSharesBefore = Sum_Shares_Ghost(epoch, vault);
+    env e;
+    calldataarg args;
+    f(e, args);
+    require forall address u. getLastUserAccrueTimestamp(epoch, vault, u) >= getEpochsEndTimestamp(epoch);
+    require getLastAccruedTimestamp(epoch, vault) >= getEpochsEndTimestamp(epoch);
+    uint256 totalPointsAfter = getTotalPoints(epoch, vault);
+    uint256 sumPointsAfter = Sum_UserPoints_Ghost(epoch, vault);
+    assert (totalPointsAfter == sumPointsAfter, "totalPoints is not equal to the sum of user points after complete accrual of all users in the vault in the epoch");
 }
 
 
@@ -272,7 +312,7 @@ getLastUserAccrueTimestamp(ep, vault, user) == 0 => getPoints(ep, vault, user) =
     }
 }
 
-// rule proving post-state of invariant UserPointsZeroIfAccrueTimeZero
+// rule proving preserve-state of invariant UserPointsZeroIfAccrueTimeZero
 // PASSING
 rule ifLastUserAccrueTimeZeroThenPointsZero (method f, uint256 epoch, address vault, address user){
     uint256 LastUserAccrueTimeBefore = getLastUserAccrueTimestamp(epoch, vault, user);
@@ -300,7 +340,7 @@ getLastUserAccrueTimestamp(ep, vault, user) == 0 => getShares(ep, vault, user) =
     }
 }
 
-// Rule proving post-state for invariant UserSharesZeroIfAccrueTimeZero
+// Rule proving preserve-state for invariant UserSharesZeroIfAccrueTimeZero
 // PASSING
 rule ifLastUserAccrueTimeZeroThenSharesZero(method f, uint256 epoch, address vault, address user){
     uint256 LastUserAccrueTimeBefore = getLastUserAccrueTimestamp(epoch, vault, user);
@@ -329,7 +369,7 @@ getLastAccruedTimestamp(ep, vault) == 0 => getTotalPoints(ep, vault) == 0
     }
 }
 
-// rule proving the post-state of invariant TotalPointsZeroIfAccrueTimeZero
+// rule proving the preserve-state of invariant TotalPointsZeroIfAccrueTimeZero
 // PASSING
 rule ifLastUserAccrueTimeZeroThenTotalPointsZero(method f, uint256 epoch, address vault){
     uint256 LastAccrueTimeBefore = getLastAccruedTimestamp(epoch, vault);
