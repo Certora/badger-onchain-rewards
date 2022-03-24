@@ -1,3 +1,13 @@
 {
-    "topics": []
+    "topics": [
+        {
+            "name": "type_check",
+            "messages": [
+                {
+                    "message": "Syntax error in spec file (Badger_mehul_1.spec:61:5): Hooks may not call Contract Functions",
+                    "location": []
+                }
+            ]
+        }
+    ]
 }

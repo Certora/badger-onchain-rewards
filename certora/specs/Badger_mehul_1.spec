@@ -49,26 +49,35 @@ methods {
     tokenBalanceOf(address, address) returns(uint256) envfree
 }
 
-// Ghost variable to keep track of currentEpoch 
-// The way contract updates currentEpoch messes with invariants
-ghost curEp() returns uint256 {
-    init_state axiom curEp() == 0;
+// Ghost variable to keep track of starting times of each epoch
+ghost epStart(uint256) returns uint256 {
+    init_state axiom forall uint256 epoch. epStart(epoch) == 0;
+}
+
+ghost epEnd(uint256) returns uint256 {
+    init_state axiom forall uint256 epoch. epEnd(epoch) == 0;
+}
+
+hook Sstore epochs[KEY uint256 ep].startTimestamp uint256 value (uint256 old_value) STORAGE {
+    // Note that currentEpoch is updated before epochs(currentEpoch has a value)
+    // Need to find workaraound to struct maps
+    havoc epStart assuming epStart@new(ep) == value;
 }
 
 hook Sstore epochs[KEY uint256 ep].endTimestamp uint256 value (uint256 old_value) STORAGE {
     // Note that currentEpoch is updated before epochs(currentEpoch has a value)
     // Need to find workaraound to struct maps
-    havoc curEp assuming curEp@new() == ep;
+    havoc epEnd assuming epEnd@new(ep) == value;
 }
 
 //Invariant : New epoch should start after previous epoch is over
 definition sequentialEpoch (uint256 epoch) returns bool =
     getEpochsEndTimestamp(epoch) - getEpochsStartTimestamp(epoch) == 604800 
-    && (epoch < curEp() => getEpochsEndTimestamp(epoch) < getEpochsStartTimestamp(to_uint256(epoch+1)))
+    && (epoch < currentEpoch() => getEpochsEndTimestamp(epoch) < getEpochsStartTimestamp(to_uint256(epoch+1)))
     ;
 
 definition epochNotStarted (uint256 epoch) returns bool =
-    epoch > curEp()
+    epoch > currentEpoch()
     && getEpochsStartTimestamp(epoch) == 0
     && getEpochsEndTimestamp(epoch) == 0
     ;
@@ -87,11 +96,11 @@ invariant epochSequential(uint256 epoch)
 
 // currentEpoch should never decrease
 rule nonDecreasingCurrentEpoch(method f) filtered {f -> !f.isView}{
-    uint256 before = curEp();
+    uint256 before = currentEpoch();
     env e;
     calldataarg args;
     f(e, args);
-    uint256 after = curEp();
+    uint256 after = currentEpoch();
     assert(before == after || 
         (before < after && f.selector == startNextEpoch().selector),
         "Epoch can only be changed by startNextEpoch by a single step");
@@ -99,46 +108,48 @@ rule nonDecreasingCurrentEpoch(method f) filtered {f -> !f.isView}{
 
 // for any environment, block timestamp should be after currentEpoch's start time
 invariant validBlockTimestamp(env e)
-    e.block.timestamp >= getEpochsStartTimestamp(curEp())
+    e.block.timestamp >= getEpochsStartTimestamp(currentEpoch())
 
 
-// Reward rules
-// rewards mapping should not be reduced under any circumstances
-// Otherwise, someone transferred rewards out through addRewards function
-// or wrote a value they shouldn't be able to write
-rule nonDecreasingRewards (uint256 epochId, address vault, address token, method f)  filtered {f -> !f.isView}{
-    uint256 before = getRewards(epochId, vault, token);
-    env e;
-    calldataarg args;
-    f(e, args);
-    uint256 after = getRewards(epochId, vault, token);
-    assert(before <= after);
-}
+// // Reward rules
+// // rewards mapping should not be reduced under any circumstances
+// // Otherwise, someone transferred rewards out through addRewards function
+// // or wrote a value they shouldn't be able to write
+// rule nonDecreasingRewards (uint256 epochId, address vault, address token, method f)  filtered {f -> !f.isView}{
+//     uint256 before = getRewards(epochId, vault, token);
+//     env e;
+//     calldataarg args;
+//     f(e, args);
+//     uint256 after = getRewards(epochId, vault, token);
+//     assert(before <= after);
+// }
 
-rule rewardsMatchCalculation(
-        address user, 
-        address vault, 
-        uint256 epoch, 
-        address token, 
-        uint256 amount){
+// rule rewardsMatchCalculation(
+//         address user, 
+//         address vault, 
+//         uint256 epoch, 
+//         address token, 
+//         uint256 amount){
 
-    env e1; env e2;
+//     env e1; env e2;
 
-    addReward(e1, epoch, vault, token, amount);
-    uint256 firstRewards = getRewards(epoch, vault, token);
-    uint256 balanceBefore = tokenBalanceOf(token, user);
+//     addReward(e1, epoch, vault, token, amount);
+//     uint256 firstRewards = getRewards(epoch, vault, token);
+//     uint256 balanceBefore = tokenBalanceOf(token, user);
 
-    uint256 userRewards = getEligibleRewardsForAmount(epoch, vault, token, user, amount);
+//     uint256 userRewards = getEligibleRewardsForAmount(epoch, vault, token, user, amount);
 
-    claimReward(e2, epoch, vault, token, user);
-    uint256 balanceAfter = tokenBalanceOf(token, user); 
+//     claimReward(e2, epoch, vault, token, user);
+//     uint256 balanceAfter = tokenBalanceOf(token, user); 
 
-    assert(
-        firstRewards == amount // Rewards added correctly
-        && (balanceAfter - balanceBefore == userRewards) // user balance is correct
-    );
-}
+//     assert(
+//         firstRewards == amount // Rewards added correctly
+//         && (balanceAfter - balanceBefore == userRewards) // user balance is correct
+//     );
+// }
 
+
+// 
 
 // last Accrue times
 ghost timeLastAccrueUser(uint256, address, address) returns uint256 {
@@ -167,7 +178,7 @@ rule lastVaultAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address va
     calldataarg args;
     f(e, args);
     uint256 after = timeLastAccrueVault(epoch, vault);
-    assert ((before == after) || getEpochsStartTimestamp(curEp()) < after);
+    assert ((before == after) || getEpochsStartTimestamp(currentEpoch()) < after);
 }
 
 rule lastUserAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vault, address user,  method f){
@@ -177,7 +188,7 @@ rule lastUserAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vau
     calldataarg args;
     f(e, args);
     uint256 after = timeLastAccrueUser(epoch, vault, user);
-    assert ((before == after) || getEpochsStartTimestamp(curEp()) < after);
+    assert ((before == after) || getEpochsStartTimestamp(currentEpoch()) < after);
 }
 
 // lastAccrueTimestamp non-decreasing
