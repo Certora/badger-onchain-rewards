@@ -21,6 +21,7 @@ methods {
     getShares(uint256, address) returns(uint256) envfree
     getTotalSupply(uint256, address) returns(uint256) envfree
     getRewards(uint256 , address, address) returns(uint256) envfree
+    getEpoch(uint256) returns (uint256, uint256) envfree
 
     // methods
     startNextEpoch()
@@ -69,7 +70,7 @@ rule startNextEpochCheck(method f, env e){
 //     assert tokenBalanceOf(token,user) == before;
 // }
 
-rule canAnyFunctionChangeMoreThanOneToken(address token1, address token2, address user, method f) {
+rule canAnyFunctionChangeMoreThanOneToken(address token1, address token2, address user, method f) filtered {f -> !f.isView} {
     require token1!=token2;
     uint256 before1 = tokenBalanceOf(token1,user);
     uint256 before2 = tokenBalanceOf(token2,user);
@@ -79,41 +80,44 @@ rule canAnyFunctionChangeMoreThanOneToken(address token1, address token2, addres
     assert tokenBalanceOf(token1,user) == before1 || tokenBalanceOf(token2,user) == before2;
 }
 
-// Epoch Rules
-function epochStart(uint256 epoch) returns uint256{
-    uint256 start; uint256 end;
-    start, end = epochs(epoch);
-    return start;
-}
-
-function epochEnd(uint256 epoch)returns uint256{
-    uint256 start; uint256 end;
-    start, end = epochs(epoch);
-    return end;
-}
 // Ghost variable to keep track of starting times of each epoch
 ghost epStart(uint256) returns uint256 {
     init_state axiom forall uint256 epoch. epStart(epoch) == 0;
 }
 
-hook Sstore epochs[KEY uint256 ep].(offset 0) uint256 value (uint256 old_value) STORAGE {
-    // Note that currentEpoch is updated before epochs(currentEpoch has a value)
-    // Need to find workaraound to struct maps
-    havoc epStart assuming forall uint256 epoch.
-    epoch == ep? epStart@new(epoch) == value : epStart@new(epoch) == epStart@old(epoch);
+ghost epEnd(uint256) returns uint256 {
+    init_state axiom forall uint256 epoch. epEnd(epoch) == 0;
 }
 
-function epEnd(uint256 epoch) returns uint256{
-    if (epStart(epoch) == 0) return 0;
-    else return to_uint256(epStart(epoch) + SECONDS_PER_EPOCH());
+hook Sstore epochs[KEY uint256 ep].startTimestamp uint256 value (uint256 old_value) STORAGE {
+    // Note that currentEpoch is updated before epochs(currentEpoch has a value)
+    // Need to find workaraound to struct maps
+    havoc epStart assuming epStart@new(ep) == value;
+}
+
+hook Sstore epochs[KEY uint256 ep].endTimestamp uint256 value (uint256 old_value) STORAGE {
+    // Note that currentEpoch is updated before epochs(currentEpoch has a value)
+    // Need to find workaraound to struct maps
+    havoc epEnd assuming epEnd@new(ep) == value;
 }
 
 //Invariant : New epoch should start after previous epoch is over
+definition sequentialEpoch (uint256 epoch) returns bool =
+    epEnd(epoch) - epStart(epoch) == SECONDS_PER_EPOCH() 
+    && epEnd(epoch) < epStart(to_uint256(epoch+1))
+    ;
+
+definition epochNotStarted (uint256 epoch) returns bool =
+    epoch > currentEpoch()
+    && epStart(epoch) ==0
+    && epEnd(epoch) == 0
+    ;
+
 invariant epochSequential(uint256 epoch)
-    epEnd(epoch) < epStart(to_uint256(epoch+1)) || (epStart(epoch) ==0 && epEnd(epoch) == 0)
+    sequentialEpoch(epoch) || epochNotStarted(epoch)
 
 // currentEpoch should never decrease
-rule nonDecreasingCurrentEpoch(method f){
+rule nonDecreasingCurrentEpoch(method f) filtered {f -> !f.isView}{
     uint256 before = currentEpoch();
     env e;
     calldataarg args;
@@ -129,7 +133,7 @@ rule nonDecreasingCurrentEpoch(method f){
 // rewards mapping should not be reduced under any circumstances
 // Otherwise, someone transferred rewards out through addRewards function
 // or wrote a value they shouldn't be able to write
-rule nonDecreasingRewards (uint256 epochId, address vault, address token, method f) {
+rule nonDecreasingRewards (uint256 epochId, address vault, address token, method f)  filtered {f -> !f.isView}{
     uint256 before = getRewards(epochId, vault, token);
     env e;
     calldataarg args;

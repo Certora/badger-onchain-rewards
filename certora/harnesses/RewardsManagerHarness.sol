@@ -77,6 +77,7 @@ contract RewardsManagerHarness is RewardsManager {
     }
 
     // space to create your own destiny 
+    
 
 
 }

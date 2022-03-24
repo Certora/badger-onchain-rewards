@@ -5,6 +5,7 @@ methods {
     // constants
     SECONDS_PER_EPOCH() returns(uint256) envfree // => ALWAYS(604800)
     MAX_BPS() returns(uint256) envfree => ALWAYS(10000)
+    PRECISION() returns(uint256) envfree
 
     // other variables
     currentEpoch() returns(uint256) envfree
@@ -47,22 +48,8 @@ methods {
     tokenBalanceOf(address, address) returns(uint256) envfree
 }
 
-// Original Certora rules
-
-function epochStart(uint256 epoch) returns uint256{
-    uint256 start; uint256 end;
-    start, end = epochs(epoch);
-    return start;
-}
-
-function epochEnd(uint256 epoch)returns uint256{
-    uint256 start; uint256 end;
-    start, end = epochs(epoch);
-    return end;
-}
-
 invariant epochSequential(uint256 epoch)
-    epochEnd(epoch) < epochStart(to_uint256(epoch+1)) || (epochStart(epoch) ==0 && epochEnd(epoch) == 0)
+    getEpochsEndTimestamp(epoch) < getEpochsStartTimestamp(to_uint256(epoch+1)) || (getEpochsStartTimestamp(epoch) ==0 && getEpochsEndTimestamp(epoch) == 0)
 
 
 // last Accrue times
@@ -86,20 +73,20 @@ hook Sstore lastAccruedTimestamp[KEY uint256 epoch][KEY address vault] uint256 v
 
 
 // Accrue time rules : If updated, it should point to current time
-rule lastVaultAccrueAfterCurentEpochStart(uint256 epoch, address vault,  method f){
+rule lastVaultAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vault,  method f){
     uint256 before = timeLastAccrueVault(epoch, vault);
     env e; calldataarg args;
     f(e, args);
     uint256 after = timeLastAccrueVault(epoch, vault);
-    assert ((before == after) || epochStart(currentEpoch()) < after);
+    assert ((before == after) || getEpochsStartTimestamp(currentEpoch()) < after);
 }
 
-rule lastUserAccrueAfterCurentEpochStart(uint256 epoch, address vault, address user,  method f){
+rule lastUserAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vault, address user,  method f){
     uint256 before = timeLastAccrueUser(epoch, vault, user);
     env e; calldataarg args;
     f(e, args);
     uint256 after = timeLastAccrueUser(epoch, vault, user);
-    assert ((before == after) || epochStart(currentEpoch()) < after);
+    assert ((before == after) || getEpochsStartTimestamp(currentEpoch()) < after);
 }
 
 // lastAccrueTimestamp non-decreasing
@@ -144,13 +131,54 @@ hook Sstore shares[KEY uint256 epoch][KEY address vault][KEY address user] uint2
 rule sumOfUserBalancesShouldMatchTotalSupply(uint256 epoch, address vault, address user, method f){
     require(epoch <= currentEpoch());
     requireInvariant epochSequential(epoch);
-    require(userShareSum(epoch, vault) == totalSupply(epoch, vault));
+    require(userShareSum(epoch, vault) == getTotalSupply(epoch, vault));
     env e; calldataarg args;
     f(e, args);
-    assert(userShareSum(epoch, vault) == totalSupply(epoch, vault));
+    assert(userShareSum(epoch, vault) == getTotalSupply(epoch, vault));
 }
 
 
 // Is the order of acrue functions important?
 // acrueVault is always called after acrueUser
 // Does accrual before calling any function produce the same result?
+//rule vaultAccrueBeforeCallChangesOutput()
+
+
+// Rewards to any particular user should match calculation
+// Add reward, call claimReward
+// Checking for loop functions with two tokens should be sufficient
+
+rule rewardsMatchCalculation(address user1, address user2, address vault, uint256 epoch, address token, uint256 amount){
+    env e1; env e2;
+    calldataarg args;
+    bool match = true;
+    require(e2.msg.sender == user2);
+    //require(user1 != user2);
+
+    uint256 totalPoints = getTotalPoints(epoch, vault);
+    uint256 user1Points = getPoints(epoch, vault, user1);
+    uint256 user1PointsWithdrawn = getPointsWithdrawn(epoch, vault, user1, token);
+    
+    require(user1Points >= user1PointsWithdrawn);
+    require(totalPoints > 0);
+
+    addReward(e1, epoch, vault, token, amount);
+    uint256 firstRewards = getRewards(epoch, vault, token);
+    uint256 balanceBefore = tokenBalanceOf(token, user1);
+
+    //f(e2, args);
+
+    claimReward(e2, epoch, vault, token, user1);
+
+    uint256 balanceAfter = tokenBalanceOf(token, user1);
+    uint256 finalRewards = getRewards(epoch, vault, token);
+
+    // Calculate reward
+    uint256 ratioForPointsLeft = PRECISION() * (user1Points - user1PointsWithdrawn) / totalPoints;
+    uint256 expectedReward = amount*ratioForPointsLeft/PRECISION();
+
+    assert(
+        firstRewards == amount // Rewards added correctly
+        && balanceAfter - balanceBefore == expectedReward // user balance is correct
+    );
+}
