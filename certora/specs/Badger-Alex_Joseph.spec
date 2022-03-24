@@ -8,6 +8,8 @@ import "itsLikeAReward.spec"
 //  * USEFUL CONSTRUCTS.                                                                                                                *
 //  *************************************************************************************************************************************
 
+definition PRECISION returns uint256 = 1000000000000000000;
+
 // Ghost for tracking the sum of pointWithdrawn for each epoch, vault and token across all users. This is updated using the pointsWithdrawn hook.
 ghost PWSum_EpochVaultToken_Ghost(uint256, address, address) returns uint256{
     init_state axiom forall uint256 e. forall address v. forall address t. PWSum_EpochVaultToken_Ghost(e, v, t) == 0;
@@ -62,7 +64,7 @@ hook Sstore pointsWithdrawn [KEY uint256 epoch][KEY address vault][KEY address u
     forall uint256 e. forall address v. forall address t. 
     (e == epoch && v == vault && t == token)? 
     pendingRewards_Token_Ghost@new(t) == pendingRewards_Token_Ghost@old(t) - 
-    (((points_withdrawn - old_points_withdrawn)/ total_points_vault_epoch_Ghost(e, v))*Reward_Epoch_Vault_Token_Ghost(e, v, t)):
+    ((((points_withdrawn - old_points_withdrawn)*PRECISION())/ total_points_vault_epoch_Ghost(e, v))*Reward_Epoch_Vault_Token_Ghost(e, v, t))/PRECISION():
     (pendingRewards_Token_Ghost@new(t) == pendingRewards_Token_Ghost@old(t));
     
     // Sum of all rewards paid out for a give token in a given epoch and vault. Once all users have claimed their rewards in a vault in an epoch,
@@ -121,7 +123,6 @@ hook Sstore shares[KEY uint256 epoch][KEY address vault][KEY address user] uint2
     Sum_Shares_Ghost@new(e, v) == Sum_Shares_Ghost@old(e, v);
 }
 
-
 //  *************************************************************************************************************************************
 //  * INVARIANTS AND RULES                                                                                                              *
 //  *************************************************************************************************************************************
@@ -166,19 +167,49 @@ rule enoughBalanceToPayRewardsForTokenRule(env e, uint256 epoch, address vault, 
 
 // Once all the users have claimed rewards for a token in a given epoch and vault, the total reward payout should be equal to the rewards of the 
 // vault and epoch 
+// PASSING VACUOUS
 invariant TotalRewardPayoutEqualsRewardsForVaultEpoch (uint256 ep, address vlt, address token)
+(forall address user. getPointsWithdrawn(ep, vlt, user, token) > 0) => 
 getRewards(ep, vlt, token) == RewardsPayout_EpochVaultToken_Ghost(ep, vlt, token)
 {
     preserved
     {
-        require forall address user. getPointsWithdrawn(ep, vlt, user, token) > 0;
-        require ep < currentEpoch();
+        require (ep < currentEpoch() && ep > 0);
     }
 }
 
-// rule TotalRewardPayoutEqualsRewardsForVaultEpoch
+rule TotalRewardPayoutEqualsRewardsForVaultEpochRule(uint256 ep, address vlt, address token, env e, method f){
+    uint256 rewardsBefore = getRewards(ep, vlt, token);
+    uint256 rewardsPayoutBefore = RewardsPayout_EpochVaultToken_Ghost(ep, vlt, token);
+    require (ep < currentEpoch() && ep > 0);
+    uint256 currentEpoch = currentEpoch();
+    address user;
+    calldataarg args;
+    f(e, args);
+    require forall address users. (getPointsWithdrawn(ep, vlt, user, token) > 0);
+    uint256 rewardsAfter = getRewards(ep, vlt, token);
+    uint256 rewardsPayoutAfter = RewardsPayout_EpochVaultToken_Ghost(ep, vlt, token);
+    assert (rewardsAfter == rewardsPayoutAfter,"Total rewards payout, after all users have claimed, is less than the rewards for the vault and epoch");
+}
 
 
+rule testingRewardsPayoutGhost(uint256 ep, address vlt, address user, address token, env e){
+    uint256 rewardPayoutBefore = RewardsPayout_EpochVaultToken_Ghost(ep, vlt, token);
+    uint256 pointsWithdrawnBefore = getPointsWithdrawn(ep, vlt, user,token);
+    uint256 contractTokenBalanceBefore = tokenBalanceOf(token, currentContract);
+    uint256 userTokenBalanceBefore = tokenBalanceOf(token, user);
+    uint256 PWSumBefore = PWSum_EpochVaultToken_Ghost(ep, vlt, token);
+    require user!= currentContract;
+    claimReward(e, ep, vlt, token, user);
+    uint256 PWSumAfter = PWSum_EpochVaultToken_Ghost(ep, vlt, token);
+    uint256 rewardPayoutAfter = RewardsPayout_EpochVaultToken_Ghost(ep, vlt, token);
+    uint256 pointsWithdrawnAfter = getPointsWithdrawn(ep, vlt, user,token);
+    uint256 contractTokenBalanceAfter = tokenBalanceOf(token, currentContract);
+    uint256 userTokenBalanceAfter = tokenBalanceOf(token, user);
+    require pointsWithdrawnAfter > pointsWithdrawnBefore;
+    assert (rewardPayoutAfter != rewardPayoutBefore,"rewardspayout ghost unchanged");
+
+}
 
 
 
@@ -549,8 +580,10 @@ getEpochsEndTimestamp(epoch) <= getEpochsStartTimestamp(epoch + 1)
 
 // PASSING
 invariant CurrentandPastEpochTimestampsNonZero(uint256 epoch)
-currentEpoch() > 0 =>(getEpochsEndTimestamp(currentEpoch()) != 0 && getEpochsStartTimestamp(currentEpoch()) != 0 ) && 
-((epoch < currentEpoch() && epoch >0) => (getEpochsStartTimestamp(epoch) != 0 && getEpochsEndTimestamp(epoch) != 0))
+currentEpoch() > 0 =>
+((getEpochsEndTimestamp(currentEpoch()) > getEpochsStartTimestamp(currentEpoch()) && 
+getEpochsStartTimestamp(currentEpoch()) != 0 ) &&
+((epoch < currentEpoch() && epoch >0) => (getEpochsStartTimestamp(epoch) > getEpochsEndTimestamp(epoch) && getEpochsEndTimestamp(epoch) != 0)))
 
 // PASSING
 invariant FutureEpochVaultZERO(uint256 epoch, address vault, address user, address token, env e)
@@ -560,10 +593,9 @@ invariant FutureEpochVaultZERO(uint256 epoch, address vault, address user, addre
     getPoints(epoch, vault, user) == 0 &&
     getPointsWithdrawn(epoch, vault, user, token) == 0 &&
     getTotalPoints(epoch, vault) == 0 &&
-    getLastAccruedTimestamp(epoch, vault) == 0 &&
-    getLastUserAccrueTimestamp(epoch, vault, user) == 0 &&
     getShares(epoch, vault, user) == 0 &&
-    getTotalSupply(epoch, vault) == 0
+    getTotalSupply(epoch, vault) == 0 &&
+    getRewards(epoch,vault, token) == 0
 )
 
 
