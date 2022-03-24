@@ -172,8 +172,14 @@ getRewards(ep, vlt, token) == RewardsPayout_EpochVaultToken_Ghost(ep, vlt, token
     preserved
     {
         require forall address user. getPointsWithdrawn(ep, vlt, user, token) > 0;
+        require ep < currentEpoch();
     }
 }
+
+// rule TotalRewardPayoutEqualsRewardsForVaultEpoch
+
+
+
 
 
 // In a given epoch and vault, if all the users and the vault have been accrued for the entire duration of the epoch, 
