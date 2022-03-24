@@ -171,7 +171,7 @@ hook Sstore lastAccruedTimestamp[KEY uint256 epoch][KEY address vault] uint256 v
 }
 
 // Accrue time rules : If updated, it should point to current time
-rule lastVaultAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vault,  method f){
+rule lastVaultAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vault,  method f) filtered {f -> !f.isView}{
     env e; 
     requireInvariant validBlockTimestamp(e);
     uint256 before = timeLastAccrueVault(epoch, vault);
@@ -181,7 +181,7 @@ rule lastVaultAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address va
     assert ((before == after) || getEpochsStartTimestamp(currentEpoch()) < after);
 }
 
-rule lastUserAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vault, address user,  method f){
+rule lastUserAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vault, address user,  method f) filtered {f -> !f.isView}{
     env e; 
     requireInvariant validBlockTimestamp(e);
     uint256 before = timeLastAccrueUser(epoch, vault, user);
@@ -192,7 +192,7 @@ rule lastUserAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vau
 }
 
 // lastAccrueTimestamp non-decreasing
-rule nonDecreasingLastAccruedTimestamp(uint256 epoch, address vault, method f){
+rule nonDecreasingLastAccruedTimestamp(uint256 epoch, address vault, method f) filtered {f -> !f.isView}{
     env e;
     requireInvariant validBlockTimestamp(e);
     uint256 before = timeLastAccrueVault(epoch, vault);
@@ -202,7 +202,7 @@ rule nonDecreasingLastAccruedTimestamp(uint256 epoch, address vault, method f){
     assert(before <= after, "lastAccruedTimestamp decreased");
 }
 
-rule nonDecreasingLastUserAccrueTimestamp(uint256 epoch, address vault, address user, method f){
+rule nonDecreasingLastUserAccrueTimestamp(uint256 epoch, address vault, address user, method f) filtered {f -> !f.isView}{
     env e;
     requireInvariant validBlockTimestamp(e);
     uint256 before = timeLastAccrueUser(epoch, vault, user);
