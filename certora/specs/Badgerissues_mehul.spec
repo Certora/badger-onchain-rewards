@@ -1,78 +1,5 @@
 // Rules for badgerDao Care
-import "sanity.spec"
-
-methods {
-    // constants
-    SECONDS_PER_EPOCH() returns(uint256) envfree // => ALWAYS(604800)
-    MAX_BPS() returns(uint256) envfree => ALWAYS(10000)
-    PRECISION() returns(uint256) envfree
-
-    // other variables
-    currentEpoch() returns(uint256) envfree
-
-    // mapping harness getters
-    getEpochsStartTimestamp(uint256) returns(uint256) envfree
-    getEpochsEndTimestamp(uint256) returns(uint256) envfree
-    getPoints(uint256, address, address) returns(uint256) envfree
-    getPointsWithdrawn(uint256, address, address, address) returns(uint256) envfree
-    getTotalPoints(uint256, address) returns(uint256) envfree
-    getLastAccruedTimestamp(uint256, address) returns(uint256) envfree
-    getLastUserAccrueTimestamp(uint256, address, address) returns(uint256) envfree
-    getLastVaultDeposit(address) returns(uint256) envfree
-    getShares(uint256, address) returns(uint256) envfree
-    getTotalSupply(uint256, address) returns(uint256) envfree
-    getRewards(uint256 , address, address) returns(uint256) envfree
-    getEligibleRewards(uint256 , address, address, address) returns(uint256) envfree
-
-
-    // methods
-    startNextEpoch()
-    accrueVault(uint256, address)
-    getVaultTimeLeftToAccrue(uint256, address) returns(uint256)
-    claimBulkTokensOverMultipleEpochsOptimized(uint256, uint256, address, address[])
-    addRewards(uint256[], address[], address[], uint256[])
-    addReward(uint256, address, address, uint256)
-    notifyTransfer(address, address, uint256)
-    accrueUser(uint256, address, address)
-    getUserTimeLeftToAccrue(uint256, address, address) returns(uint256)
-    claimRewards(uint256[], address[], address[], address[])
-    claimReward(uint256, address, address, address)
-    claimBulkTokensOverMultipleEpochs(uint256, uint256, address, address[], address)
-    handleDeposit(address, address, uint256)
-    handleWithdrawal(address, address, uint256)
-
-    // envfree methods
-    getTotalSupplyAtEpoch(uint256, address) returns(uint256, bool) envfree
-    handleTransfer(address, address, address, uint256) envfree
-    getBalanceAtEpoch(uint256, address, address) returns(uint256, bool) envfree
-    requireNoDuplicates(address[]) envfree
-    min(uint256, uint256) returns(uint256) envfree
-    tokenBalanceOf(address, address) returns(uint256) envfree
-}
-
-invariant epochSequential(uint256 epoch)
-    getEpochsEndTimestamp(epoch) < getEpochsStartTimestamp(to_uint256(epoch+1)) || (getEpochsStartTimestamp(epoch) ==0 && getEpochsEndTimestamp(epoch) == 0)
-
-
-// last Accrue times
-ghost timeLastAccrueUser(uint256, address, address) returns uint256 {
-    init_state axiom forall uint256 epoch. forall address user. forall address vault.
-    timeLastAccrueUser(epoch, vault, user) == 0;
-}
-
-ghost timeLastAccrueVault(uint256, address) returns uint256 {
-    init_state axiom forall uint256 epoch. forall address vault.
-    timeLastAccrueVault(epoch, vault) == 0;
-}
-
-hook Sstore lastUserAccrueTimestamp[KEY uint256 epoch][KEY address vault][KEY address user] uint256 value (uint256 old_value) STORAGE {
-    havoc timeLastAccrueUser assuming timeLastAccrueUser@new(epoch, vault, user) == value;
-}
-
-hook Sstore lastAccruedTimestamp[KEY uint256 epoch][KEY address vault] uint256 value (uint256 old_value) STORAGE {
-    havoc timeLastAccrueVault assuming timeLastAccrueVault@new(epoch, vault) == value;
-}
-
+import "Badger_mehul_1.spec"
 
 // Accrue time rules : If updated, it should point to current time
 rule lastVaultAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vault,  method f){
@@ -110,23 +37,27 @@ rule nonDecreasingLastUserAccrueTimestamp(uint256 epoch, address vault, address 
     assert(before <= after, "lastAccrueUserTimestamp decreased");
 }
 
+// Vault accrue
+rule unaccruedVaultUpdateValueMatches(uint256 epoch, address vault){
+    env e;
+    //requireInvariant epochOver(epoch, e);
+    //requireInvariant epochNotStarted(epoch, e);
+    requireInvariant epochSequential(epoch);
+    require(timeLastAccrueVault(epoch, vault) <= getEpochsStartTimestamp(epoch));
 
-// Each user's share
-ghost userShare(uint256, address, address) returns uint256 {
-    init_state axiom forall uint256 epoch. forall address user. forall address vault.
-    userShare(epoch, vault, user) == 0;
+    uint256 pointsBefore = getTotalPoints(epoch, vault);
+    uint256 lastAccrue = getLastAccruedTimestamp(epoch, vault);
+    require(lastAccrue <= getEpochsStartTimestamp(epoch));
+    accrueVault(e, epoch, vault);
+    uint256 pointsAfter = getTotalPoints(epoch, vault);
+
+    // ideally pointsBefore should also be 0
+    assert( 
+        (epoch < currentEpoch() => pointsAfter - pointsBefore == getTotalSupply(epoch, vault)*SECONDS_PER_EPOCH())
+        && (epoch > currentEpoch() => pointsAfter == pointsBefore)
+    );
 }
 
-// Ghost to calculate sum of user balance at any epoch
-ghost userShareSum(uint256, address) returns uint256 {
-    init_state axiom forall uint256 epoch. forall address vault.
-    userShareSum(epoch, vault) == 0;
-}
-
-hook Sstore shares[KEY uint256 epoch][KEY address vault][KEY address user] uint256 value (uint256 old_value) STORAGE {
-    havoc userShareSum assuming userShareSum@new(epoch, vault) == userShareSum@old(epoch, vault) + value - old_value;
-    havoc userShare assuming userShare@new(epoch, vault, user) == userShare@old(epoch, vault, user);
-}
 
 // Sum of user balances should equal total supply - IMPORTANT
 // Fails during notifyTransfer (0x0, 0x0, amount) - increases shares without any change to balances

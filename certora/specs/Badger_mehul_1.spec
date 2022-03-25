@@ -85,6 +85,25 @@ definition epochNotStarted (uint256 epoch) returns bool =
 invariant epochSequential(uint256 epoch)
     sequentialEpoch(epoch) || epochNotStarted(epoch)
 
+invariant epochOver(uint256 epoch, env e)
+    epoch < currentEpoch() => getEpochsStartTimestamp(epoch) < e.block.timestamp && getEpochsEndTimestamp(epoch) < e.block.timestamp
+
+invariant epochNotStarted(uint256 epoch, env e)
+    epoch > currentEpoch() => getEpochsStartTimestamp(epoch) == 0 && getEpochsEndTimestamp(epoch) == 0
+
+// Epoch state change
+rule epochChange(method f){
+    uint256 epochBefore = currentEpoch();
+    env e;
+    calldataarg args;
+    f(e, args);
+    uint256 epochAfter = currentEpoch();
+    assert(
+        epochBefore == epochAfter ||
+        (f.selector == startNextEpoch().selector && epochAfter == epochBefore + 1 && e.block.timestamp > getEpochsEndTimestamp(epochBefore)),
+        "Epoch can only increase by one, no other function can change state"
+    );
+}
 // Because line 93 in RewardsManager updates currentEpoch first, this cannot be an invariant :/
 // rule epochSequential(uint256 epoch, method f) filtered {f -> f.isView} {
 //     require(sequentialEpoch(epoch) || epochNotStarted(epoch));
@@ -111,47 +130,104 @@ invariant validBlockTimestamp(env e)
     e.block.timestamp >= getEpochsStartTimestamp(currentEpoch())
 
 
-// // Reward rules
-// // rewards mapping should not be reduced under any circumstances
-// // Otherwise, someone transferred rewards out through addRewards function
-// // or wrote a value they shouldn't be able to write
-// rule nonDecreasingRewards (uint256 epochId, address vault, address token, method f)  filtered {f -> !f.isView}{
-//     uint256 before = getRewards(epochId, vault, token);
-//     env e;
-//     calldataarg args;
+// Reward rules
+// rewards mapping should not be reduced under any circumstances
+// Otherwise, someone transferred rewards out through addRewards function
+// or wrote a value they shouldn't be able to write
+rule nonDecreasingRewards (uint256 epochId, address vault, address token, method f)  filtered {f -> !f.isView}{
+    uint256 before = getRewards(epochId, vault, token);
+    env e;
+    calldataarg args;
+    f(e, args);
+    uint256 after = getRewards(epochId, vault, token);
+    assert(before <= after);
+}
+
+rule rewardsMatchCalculation(
+        address user, 
+        address vault, 
+        uint256 epoch, 
+        address token, 
+        uint256 amount){
+
+    env e1; env e2;
+
+    addReward(e1, epoch, vault, token, amount);
+    uint256 firstRewards = getRewards(epoch, vault, token);
+    uint256 balanceBefore = tokenBalanceOf(token, user);
+
+    uint256 userRewards = getEligibleRewardsForAmount(epoch, vault, token, user, amount);
+
+    claimReward(e2, epoch, vault, token, user);
+    uint256 balanceAfter = tokenBalanceOf(token, user); 
+
+    assert(
+        firstRewards == amount // Rewards added correctly
+        && (balanceAfter - balanceBefore == userRewards) // user balance is correct
+    );
+}
+
+
+
+// Points
+// ghost userPoints(uint256, address, address) returns uint256 {
+//     init_state axiom forall uint256 epoch. forall address user. forall address vault.
+//     userPoints(epoch, vault, user) == 0;
+// }
+
+// hook Sstore totalPoints[KEY uint256 epoch][KEY address vault] uint256 value (uint256 old_value) STORAGE {
+//     havoc vaultPoints assuming vaultPoints@new(epoch, vault) = value;
+// }
+
+// // Ghost to calculate sum of user balance at any epoch
+// ghost vaultPoints(uint256, address) returns uint256 {
+//     init_state axiom forall uint256 epoch. forall address vault.
+//     tvaultPoints(epoch, vault) == 0;
+// }
+
+// hook Sstore totalPoints[KEY uint256 epoch][KEY address vault] uint256 value (uint256 old_value) STORAGE {
+//     havoc vaultPoints assuming vaultPoints@new(epoch, vault) = value;
+// }
+
+// Shares / supply
+ghost userShare(uint256, address, address) returns uint256 {
+    init_state axiom forall uint256 epoch. forall address user. forall address vault.
+    userShare(epoch, vault, user) == 0;
+}
+
+// Ghost to calculate sum of user balance at any epoch
+ghost userShareSum(uint256, address) returns uint256 {
+    init_state axiom forall uint256 epoch. forall address vault.
+    userShareSum(epoch, vault) == 0;
+}
+
+hook Sstore shares[KEY uint256 epoch][KEY address vault][KEY address user] uint256 value (uint256 old_value) STORAGE {
+    havoc userShareSum assuming userShareSum@new(epoch, vault) == userShareSum@old(epoch, vault) + value - old_value;
+    havoc userShare assuming userShare@new(epoch, vault, user) == userShare@old(epoch, vault, user);
+}
+
+invariant sumOfUserShareMatchesTotalSupply(uint256 epoch, address vault)
+    userShareSum(epoch, vault) <= getTotalSupply(epoch, vault) // In case users haven't been accrued
+
+// rule sumOfUserSharesShouldMatchTotalSupply(uint256 epoch, address vault, address user, method f){
+//     require(epoch <= currentEpoch());
+//     requireInvariant epochSequential(epoch);
+//     require(userShareSum(epoch, vault) == getTotalSupply(epoch, vault));
+//     env e; calldataarg args;
+//     require(e.msg.sender != 0);
 //     f(e, args);
-//     uint256 after = getRewards(epochId, vault, token);
-//     assert(before <= after);
-// }
-
-// rule rewardsMatchCalculation(
-//         address user, 
-//         address vault, 
-//         uint256 epoch, 
-//         address token, 
-//         uint256 amount){
-
-//     env e1; env e2;
-
-//     addReward(e1, epoch, vault, token, amount);
-//     uint256 firstRewards = getRewards(epoch, vault, token);
-//     uint256 balanceBefore = tokenBalanceOf(token, user);
-
-//     uint256 userRewards = getEligibleRewardsForAmount(epoch, vault, token, user, amount);
-
-//     claimReward(e2, epoch, vault, token, user);
-//     uint256 balanceAfter = tokenBalanceOf(token, user); 
-
-//     assert(
-//         firstRewards == amount // Rewards added correctly
-//         && (balanceAfter - balanceBefore == userRewards) // user balance is correct
-//     );
+//     assert(userShareSum(epoch, vault) == getTotalSupply(epoch, vault));
 // }
 
 
-// 
 
-// last Accrue times
+
+
+
+
+
+
+// // last Accrue times
 ghost timeLastAccrueUser(uint256, address, address) returns uint256 {
     init_state axiom forall uint256 epoch. forall address user. forall address vault.
     timeLastAccrueUser(epoch, vault, user) == 0;
@@ -171,7 +247,7 @@ hook Sstore lastAccruedTimestamp[KEY uint256 epoch][KEY address vault] uint256 v
 }
 
 // Accrue time rules : If updated, it should point to current time
-rule lastVaultAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vault,  method f) filtered {f -> !f.isView}{
+rule lastVaultAccrueAfterCurentEpochStartTimestamp(uint256 epoch, address vault,  method f) filtered {f -> !f.isView}{
     env e; 
     requireInvariant validBlockTimestamp(e);
     uint256 before = timeLastAccrueVault(epoch, vault);
