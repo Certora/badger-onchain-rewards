@@ -28,6 +28,7 @@ ghost pendingRewards_Token_Ghost(address) returns uint256{
     init_state axiom forall address t. pendingRewards_Token_Ghost(t) == 0;
 }
 
+// Ghost tracking the total rewards, for a given token, paid out by the contract to all users across all epoch and vaults. 
 ghost RewardsPayout_EpochVaultToken_Ghost(uint256, address, address) returns uint256{
     init_state axiom forall uint256 e. forall address v. forall address t. RewardsPayout_EpochVaultToken_Ghost(e, v, t) == 0;
 }

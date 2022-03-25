@@ -67,8 +67,8 @@ invariant AccruedVaultTotalPointsGEUserPointsInVault(env e, uint256 epoch, addre
 (getLastAccruedTimestamp(epoch, vault) < e.block.timestamp)) => 
 (getTotalPoints(epoch, vault) >= getPoints(epoch, vault, user))
 
-
-rule AccruedVaultTotalPointsGEUserPointsInVaultRule(env e, uint256 epoch, address vault, address user, method f){
+// PASSING
+rule AccruedVaultTotalPointsGEUserPointsInVaultRule(uint256 epoch, address vault, address user, method f){
     requireInvariant UserPointsZeroIfAccrueTimeZero(epoch, vault, user);
     requireInvariant TotalPointsZeroIfAccrueTimeZero(epoch, vault);
     requireInvariant SumOfUserSharesLETotalSupplyinEpochVault(epoch, vault);
@@ -76,18 +76,29 @@ rule AccruedVaultTotalPointsGEUserPointsInVaultRule(env e, uint256 epoch, addres
     uint256 lastUserAccrueTimeBefore = getLastUserAccrueTimestamp(epoch, vault, user);
     uint256 totalPointsBefore = getTotalPoints(epoch, vault);
     uint256 userPointsBefore = getPoints(epoch, vault, user);
-    require (lastAccrueTimeBefore >= lastUserAccrueTimeBefore) => (totalPointsBefore >= userPointsBefore);
-    require lastAccrueTimeBefore < e.block.timestamp;
-    require lastUserAccrueTimeBefore < e.block.timestamp;
+    require lastAccrueTimeBefore == 0;
+    require lastUserAccrueTimeBefore == 0;
+    require totalPointsBefore ==0;
+    require userPointsBefore ==0;
+    // require lastAccrueTimeBefore < e.block.timestamp;
+    // require lastUserAccrueTimeBefore < e.block.timestamp;
     calldataarg args;
+    env e;
     f(e, args);
+    accrueUser(e, epoch, vault, user);
+    accrueVault(e, epoch, vault);
     uint256 lastAccrueTimeAfter = getLastAccruedTimestamp(epoch, vault);
     uint256 lastUserAccrueTimeAfter = getLastUserAccrueTimestamp(epoch, vault, user);
     uint256 totalPointsAfter = getTotalPoints(epoch, vault);
     uint256 userPointsAfter = getPoints(epoch, vault, user);
-    assert ((lastAccrueTimeAfter >= lastUserAccrueTimeAfter) => (totalPointsAfter >= userPointsAfter),"If vault has been accrued after the user then the total Points should be greater than or equal to user points");
+    // assert ((lastAccrueTimeAfter >= lastUserAccrueTimeAfter) => (totalPointsAfter >= userPointsAfter),"If vault has been accrued after the user then the total Points should be greater than or equal to user points");
+    assert (totalPointsAfter >= userPointsAfter,"If vault has been accrued after the user then the total Points should be greater than or equal to user points");
+    
     // assert false;
 }
+
+
+
 
 // transfer the right amount of reward tokens to the user
 // updates the pointswithdrawn correctly
@@ -124,6 +135,7 @@ getLastUserAccrueTimestamp(ep, vault, user) == 0 => getPoints(ep, vault, user) =
         require e.block.timestamp > 0;
     }
 }
+
 
 // rule proving preserve-state of invariant UserPointsZeroIfAccrueTimeZero
 // PASSING
