@@ -292,3 +292,100 @@ rule sanityOfMin(uint a, uint b) {
 
     assert a < b => a == min_a_b, "wrong min function";
 }
+
+/********************************
+*                               *
+*   getVaultTimeLeftToAccrue    *
+*                               *
+********************************/
+
+// STATUS: unVerified
+// have to add some requierements
+// checking getBalanceAtEpoch return correct shouldUpdate value
+rule vaultTimeLeftToAccrueUpperBound(uint256 epoch, address vault) {
+    env e;
+    uint timeLeft = getVaultTimeLeftToAccrue(e, epoch, vault);
+    assert timeLeft < 68400, "something wrong with the function return";
+}
+
+
+/********************************
+*                               *
+*   getUserTimeLeftToAccrue    *
+*                               *
+********************************/
+
+// STATUS: unVerified
+// have to add some requierements
+// checking getBalanceAtEpoch return correct shouldUpdate value
+rule userTimeLeftToAccrueUpperBound(uint256 epoch, address vault, address user) {
+    env e;
+    uint timeLeft = getUserTimeLeftToAccrue(e, epoch, vault, user);
+    assert timeLeft < 68400, "something wrong with the function return";
+}
+
+
+/********************************
+*                               *
+*         CLAIM REWARD*S         *
+*                               *
+********************************/
+
+
+// STATUS: VERIFIED
+// PROPERTY 36
+// checks claimReward cant be called for present or futur epochs
+rule correctClaimRewardRevert(uint256 epoch, address vault, address token, address user){
+    env e;
+    uint currentEp = currentEpoch();
+    claimReward@withrevert(e, epoch, vault,token, user);
+    assert epoch >= currentEp => lastReverted, "claimReward should revert";
+}
+
+// STATUS: VERIFIED
+// PROPERTY 36
+// checks claimRewards cant be called for present or futur epochs
+rule correctClaimRewardsRevert(uint256[] epochs, address[] vaults, address[] tokens, address[] users){
+    env e;
+    require epochs.length == 1 && vaults.length == 1 && tokens.length == 1 && users.length == 1;
+    uint currentEp = currentEpoch();
+    uint epoch = epochs[0];
+    claimRewards@withrevert(e, epochs, vaults, tokens, users);
+    assert epoch >= currentEp => lastReverted, "claimRewards should revert";
+}
+
+
+// STATUS: VERIFIED
+// PROPERTY 37
+// checks claimReward cant give correct token amount to user
+rule sanityOfClaimRewardTokens(uint256 epoch, address vault, address token) {
+    env e;
+    require e.msg.sender != currentContract;
+    address user = e.msg.sender;
+    uint256 tokenBalanceBefore = tokenBalanceOf(token, user);
+    uint256 tokensForUser = getTokenReward(e, epoch, vault, token, user);
+
+    claimReward(e, epoch, vault, token, user);
+
+    uint256 tokenBalanceAfter = tokenBalanceOf(token, user);
+
+    assert tokenBalanceAfter == tokensForUser + tokenBalanceBefore, "something wrong with claimReward tokens received";
+
+}
+
+rule sanityOfClaimRewardPoints(uint256 epoch, address vault, address token) {
+    env e;
+    require e.msg.sender != currentContract;
+    address user = e.msg.sender;
+    
+    uint256 pointsWithdrawnBefore = getPointsWithdrawn(epoch, vault, token, user);
+    uint256 pointsLeft = getPointsLeft(e, epoch, vault, token, user);
+
+    claimReward(e, epoch, vault, token, user);
+
+    uint256 pointsWithdrawnAfter = getPointsWithdrawn(epoch, vault, token, user);
+
+    assert pointsWithdrawnAfter == pointsWithdrawnBefore + pointsLeft, "something wrong with claimReward pointWithdrawn increase received";
+
+}
+

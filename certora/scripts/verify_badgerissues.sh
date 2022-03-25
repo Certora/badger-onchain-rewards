@@ -1,5 +1,5 @@
 certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC20A.sol certora/helpers/DummyERC20B.sol \
-    --verify RewardsManagerHarness:certora/specs/RMT.spec \
+    --verify RewardsManagerHarness:certora/specs/Badgerissues_Baraa42.spec \
     --solc solc8.10  \
     --optimistic_loop \
     --loop_iter 1 \

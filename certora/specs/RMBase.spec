@@ -45,4 +45,8 @@ methods {
     min(uint256, uint256) returns(uint256) envfree
     tokenBalanceOf(address, address) returns(uint256) envfree
     getPrecision() returns(uint256) envfree
+
+    // added
+    getTokenReward(uint256,address,address,address) returns(uint256)
+    getPointsLeft(uint256,address,address,address) returns(uint256)
 }

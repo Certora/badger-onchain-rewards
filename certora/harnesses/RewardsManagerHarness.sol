@@ -147,4 +147,41 @@ contract RewardsManagerHarness is RewardsManagerFixed {
     ) public returns (bool shouldUpdate) {
         (, shouldUpdate) = getBalanceAtEpoch(epochId, vault, user);
     }
+
+    function getTokenReward(
+        uint256 epochId,
+        address vault,
+        address token,
+        address user
+    ) public returns (uint256) {
+        accrueUser(epochId, vault, user);
+        accrueVault(epochId, vault);
+
+        uint256 userPoints = points[epochId][vault][user];
+        uint256 vaultTotalPoints = totalPoints[epochId][vault];
+        uint256 pointsLeft = userPoints -
+            pointsWithdrawn[epochId][vault][user][token];
+        uint256 totalAdditionalReward = rewards[epochId][vault][token];
+        uint256 ratioForPointsLeft = (PRECISION * pointsLeft) /
+            vaultTotalPoints;
+        uint256 tokensForUser = (totalAdditionalReward * ratioForPointsLeft) /
+            PRECISION;
+        return tokensForUser;
+    }
+
+    function getPointsLeft(
+        uint256 epochId,
+        address vault,
+        address token,
+        address user
+    ) public returns (uint256) {
+        accrueUser(epochId, vault, user);
+        accrueVault(epochId, vault);
+        uint256 userPoints = points[epochId][vault][user];
+        uint256 vaultTotalPoints = totalPoints[epochId][vault];
+        uint256 pointsLeft = userPoints -
+            pointsWithdrawn[epochId][vault][user][token];
+
+        return pointsLeft;
+    }
 }

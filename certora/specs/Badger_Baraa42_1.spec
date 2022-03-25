@@ -1,51 +1,5 @@
 import "erc20.spec"
-
-methods {
-    // constants
-    SECONDS_PER_EPOCH() returns(uint256) envfree
-
-    // other variables
-    currentEpoch() returns(uint256) envfree
-
-    // mapping harness getters
-    getEpochsStartTimestamp(uint256) returns(uint256) envfree
-    getEpochsEndTimestamp(uint256) returns(uint256) envfree
-    getPoints(uint256, address, address) returns(uint256) envfree
-    getPointsWithdrawn(uint256, address, address, address) returns(uint256) envfree
-    getTotalPoints(uint256, address) returns(uint256) envfree
-    getLastAccruedTimestamp(uint256, address) returns(uint256) envfree
-    getLastUserAccrueTimestamp(uint256, address, address) returns(uint256) envfree
-    getLastVaultDeposit(address) returns(uint256) envfree
-    getShares(uint256, address, address) returns(uint256) envfree
-    getTotalSupply(uint256, address) returns(uint256) envfree
-    getRewards(uint256 , address, address) returns(uint256) envfree
-
-    // methods
-    startNextEpoch()
-    accrueVault(uint256, address)
-    getVaultTimeLeftToAccrue(uint256, address) returns(uint256)
-    claimBulkTokensOverMultipleEpochsOptimized(uint256, uint256, address, address[])
-    addRewards(uint256[], address[], address[], uint256[])
-    addReward(uint256, address, address, uint256)
-    notifyTransfer(address, address, uint256)
-    accrueUser(uint256, address, address)
-    getUserTimeLeftToAccrue(uint256, address, address) returns(uint256)
-    claimRewards(uint256[], address[], address[], address[])
-    claimReward(uint256, address, address, address)
-    claimBulkTokensOverMultipleEpochs(uint256, uint256, address, address[], address)
-    handleDeposit(address, address, uint256)
-    handleTransfer(address, address, address, uint256) 
-    handleWithdrawal(address, address, uint256)
-
-    // envfree methods
-    getTotalSupplyAtEpoch(uint256, address) returns(uint256, bool) envfree
-    getBalanceAtEpoch(uint256, address, address) returns(uint256, bool) envfree
-    requireNoDuplicates(address[]) envfree
-    min(uint256, uint256) returns(uint256) envfree
-    tokenBalanceOf(address, address) returns(uint256) envfree
-    getPrecision() returns(uint256) envfree
-}
-
+import "RMBase.spec"
 
 // Some Definitions
 definition epochStarted(uint epoch) returns bool = (getEpochsEndTimestamp(epoch) == getEpochsStartTimestamp(epoch) + SECONDS_PER_EPOCH()); 
@@ -54,11 +8,6 @@ definition epochStartedBlockTimeStamp(uint epoch, env e) returns bool = (epochSt
 definition vaultCorrectLastAccruedTimestamp(uint epoch,address vault, env e) returns bool = getLastAccruedTimestamp(epoch, vault) <= e.block.timestamp;
 definition userCorrectLastAccruedTimestamp(uint epoch,address vault, address user, env e) returns bool = getLastUserAccrueTimestamp(epoch, vault, user) <= e.block.timestamp;
 definition epochCorrectStartTime(uint epoch, env e) returns bool = (epoch > 0 && getEpochsStartTimestamp(epoch) >0 ) => getEpochsStartTimestamp(epoch) <= e.block.timestamp;
-// functions
-function epochEndTime(uint256 epoch) returns uint256{
-    if (epochStart(epoch) == 0) return 0;
-    else return to_uint256(epochStart(epoch) + SECONDS_PER_EPOCH());
-}
 
 
 /********************************
@@ -68,18 +17,16 @@ function epochEndTime(uint256 epoch) returns uint256{
 ********************************/
 
 
-
-
 // STATUS: VERIFIED
-// If epoch in the futur then lastUserAccrueTimestamp should be zero
-invariant futurLastUserAccrueTimestampIsZero(uint256 epoch, address vault, address user)
-    epoch > to_uint256(currentEpoch()) => getLastUserAccrueTimestamp(epoch, vault, user) == 0
-
-// STATUS: VERIFIED
-// rule to check vacuity of invariant
-rule checkFuturLastUserAccrueTimestampIsZeroInvariant(uint256 epoch, address vault, address user){
-    assert epoch > currentEpoch() => getLastUserAccrueTimestamp(epoch, vault, user) == 0;
-    assert false;
+// PROPERTY #2
+// rule can only start new epoch after end of current epoch 
+rule sanityOfStartingEpoch() {
+    env e;
+    calldataarg args;
+    uint256 epochBefore = currentEpoch();
+    uint256 epochEndBefore = getEpochsEndTimestamp(epochBefore);
+    startNextEpoch@withrevert(e);
+    assert  e.block.timestamp < epochEndBefore => lastReverted, "started next epochs before end";
 }
 
 // Ghost for initialization of epochs
@@ -87,33 +34,33 @@ rule checkFuturLastUserAccrueTimestampIsZeroInvariant(uint256 epoch, address vau
 ghost epochStart(uint256) returns uint256 {
     init_state axiom forall uint256 epoch. epochStart(epoch) == 0;
 }
-
 ghost epochEnd(uint256) returns uint256 {
     init_state axiom forall uint256 epoch. epochEnd(epoch) == 0;
 }
-
 hook Sstore epochs[KEY uint256 ep].(offset 0) uint256 value (uint256 old_value) STORAGE {
     havoc epochStart assuming forall uint256 epoch.
     epoch == ep? epochStart@new(epoch) == value : epochStart@new(epoch) == epochStart@old(epoch);
 }
-
 hook Sstore epochs[KEY uint256 ep].(offset 32) uint256 value (uint256 old_value) STORAGE {
     havoc epochEnd assuming forall uint256 epoch.
     epoch == ep? epochEnd@new(epoch) == value : epochEnd@new(epoch) == epochEnd@old(epoch);
 }
 
 // STATUS: VERIFIED
+// PROPERTY 1
 // invariant for epochId : futur epochs are non intialized
 invariant futurEpochsNonInitialized(uint256 epoch)
     epoch > currentEpoch() => (epochStart(epoch) == 0 && epochEnd(epoch) == 0)
 
 // STATUS: VERIFIED
+// PROPERTY 3
 // invariant for epochId : past epochs are initialized correctly
 invariant epochStartAndEndTime(uint256 epoch) 
     (epoch <= currentEpoch() &&  currentEpoch() > 0 && epoch > 0 ) => (epochEnd(epoch) == epochStart(epoch) + SECONDS_PER_EPOCH() )
 
 
 // STATUS: VERIFIED
+// PROPERTY 20
 // epochs are increasing
 // and only startEpoch() can increase epochs
 rule monotonicityOfEpochs(method f) {
@@ -126,19 +73,9 @@ rule monotonicityOfEpochs(method f) {
     assert epochAfter > epochBefore => f.selector == startNextEpoch().selector, "wrong function changed epochId";
 }
 
-// STATUS: VERIFIED
-// rule can only start new epoch after end of current epoch 
-rule sanityOfStartingEpoch() {
-    env e;
-    calldataarg args;
-    uint256 epochBefore = currentEpoch();
-    uint256 epochEndBefore = getEpochsEndTimestamp(epochBefore);
-    startNextEpoch@withrevert(e);
-    assert  e.block.timestamp < epochEndBefore => lastReverted, "started next epochs before end";
-}
-
 
 // STATUS: VERIFIED
+// PROPERTY 3
 // Epoch end and start time are correct after starting new epoch
 // epoch start time is correct too
 rule sanityOfNewEpochMath() {
@@ -153,6 +90,7 @@ rule sanityOfNewEpochMath() {
 }
 
 // STATUS: VERIFIED
+// PROPERTY 7
 // Epoch end and start time doesnt change illegaly
 rule preservationOfEpochData(uint epoch, method f) {
     env e;
@@ -167,13 +105,14 @@ rule preservationOfEpochData(uint epoch, method f) {
     assert epoch != currentEp => (epochStartTimeBefore==epochStartTimeAfter) && (epochEndTimeBefore==epochEndTimeAfter), "wrong epoch data update";
     
 }
+
 /********************************
 *                               *
 * SHARES/TOTALSUPPLY PROPERTIES *
 *                               *
 ********************************/
 
-// proving share <= totalSupply
+// proving sum share <= totalSupply
 ghost shareSum(uint256, address) returns uint256 {
     init_state axiom forall uint256 epoch. forall address vault. shareSum(epoch, vault) == 0;
 }
@@ -183,12 +122,112 @@ hook Sstore shares[KEY uint256 ep][KEY address v][KEY address u] uint256 value (
     (epoch == ep && vault == v && user == u)? shareSum@new(epoch, vault) == shareSum@new(epoch, vault) + value - old_value : shareSum@new(epoch, vault) == shareSum@old(epoch, vault);
 }
 
+// proving ghost tracking totalSupply
+ghost totalSup(uint256, address) returns uint256 {
+    init_state axiom forall uint256 epoch. forall address vault. totalSup(epoch, vault) == 0;
+}
+
+hook Sstore totalSupply[KEY uint256 ep][KEY address v] uint256 value (uint256 old_value) STORAGE {
+    havoc totalSup assuming forall uint256 epoch. forall address vault. 
+    (epoch == ep && vault == v )? totalSup@new(epoch, vault) == value : totalSup@new(epoch, vault) == totalSup@old(epoch, vault);
+}
 // STATUS: VERIFIED
-// check sum of share always less than total supply
+// check equality of ghost and mapping
+invariant checkTotalSupEquality(uint256 epoch, address vault)
+    getTotalSupply(epoch, vault) == totalSup(epoch, vault)
+
+// STATUS: unVERIFIED
+// check sum of shares always less than total supply
+// have to check getters of accrueVault !
 invariant totalShareInvariant(uint epoch, address vault)
+    shareSum(epoch, vault) <= totalSup(epoch, vault)
+
+invariant sumShareInvariant(uint epoch, address vault)
     shareSum(epoch, vault) <= getTotalSupply(epoch, vault)
 
+// STATUS: VERIFIED
+// check futur shares non init
+invariant futurSharesNonInitialized(uint epoch, address vault)
+    epoch > currentEpoch() => getTotalSupply(epoch, vault) == 0
 
+
+
+/********************************
+*                               *
+*       POINTS PROPERTIES       *
+*                               *
+********************************/
+
+
+
+// proving sum points <= totalPoints
+ghost pointsSum(uint256, address) returns uint256 {
+    init_state axiom forall uint256 epoch. forall address vault. pointsSum(epoch, vault) == 0;
+}
+
+hook Sstore points[KEY uint256 ep][KEY address v][KEY address u] uint256 value (uint256 old_value) STORAGE {
+    havoc pointsSum assuming forall uint256 epoch. forall address vault. forall address user.
+    (epoch == ep && vault == v && user == u)? pointsSum@new(epoch, vault) == pointsSum@new(epoch, vault) + value - old_value : pointsSum@new(epoch, vault) == pointsSum@old(epoch, vault);
+}
+
+// STATUS: VERIFIED
+// PROPERTY 8
+// Verified with loop iter 1 have to check for 2 = Have to test claimBulkTokens
+// check sum of share always less than total supply
+invariant totalPointsInvariant(uint epoch, address vault)
+    pointsSum(epoch, vault) <= getTotalPoints(epoch, vault)
+
+
+// STATUS: VERIFIED
+// PROPERTY 11
+// check rule that pointsWithdrawn always less than points
+// will have to do another check for claimBulkTokensOverMultipleEpochsOptimized
+rule pointsWithdrawnUpperBound(uint epoch, address vault, address user, address token, method f) 
+filtered {
+	f -> f.selector != claimBulkTokensOverMultipleEpochsOptimized(uint256, uint256, address, address[]).selector
+} {
+    env e;
+    calldataarg args;
+    uint256 pointsBefore = getPoints(epoch, vault, user);
+    uint256 pointsWithdrawnBefore = getPointsWithdrawn(epoch, vault, user, token);
+    f(e, args);
+    uint256 pointsAfter = getPoints(epoch, vault, user);
+    uint256 pointsWithdrawnAfter = getPointsWithdrawn(epoch, vault, user, token);
+
+    assert pointsWithdrawnBefore <= pointsBefore  => pointsWithdrawnAfter <= pointsAfter, "Wrong math of points withdrawn";
+}
+
+
+// STATUS: unVERIFIED
+// PROPERTY 9
+// check rule that points are usually non decreasing
+rule pointsNonDecreasing(uint epoch, address vault, address user, address token, method f) 
+filtered {
+	f -> f.selector != claimBulkTokensOverMultipleEpochsOptimized(uint256, uint256, address, address[]).selector
+} {
+    env e;
+    calldataarg args;
+    uint256 pointsBefore = getPoints(epoch, vault, user);
+    f(e, args);
+    uint256 pointsAfter = getPoints(epoch, vault, user);
+
+    assert pointsAfter >= pointsBefore, "points shouldnt decrease";
+}
+
+
+// STATUS: VERIFIED
+// PROPERTY 12/9
+// check rule that pointsWithdrawn are non decreasing
+rule pointsWithdrawnNonDecreasing(uint epoch, address vault, address user, address token, method f) 
+ {
+    env e;
+    calldataarg args;
+    uint256 pointsWithdrawnBefore = getPointsWithdrawn(epoch, vault, user, token);
+    f(e, args);
+    uint256 pointsWithdrawnAfter = getPointsWithdrawn(epoch, vault, user, token);
+
+    assert pointsWithdrawnAfter >= pointsWithdrawnBefore, "pointsWithdrawn shouldnt decrease";
+}
 
 
 /************************************
@@ -198,6 +237,20 @@ invariant totalShareInvariant(uint epoch, address vault)
 *************************************/
 
 // Need to write invariant on timeLeftToAccrueForUser and timeLeftToAccrueVault
+
+
+
+// STATUS: VERIFIED
+// If epoch in the futur then lastUserAccrueTimestamp should be zero
+invariant futurLastUserAccrueTimestampIsZero(uint256 epoch, address vault, address user)
+    epoch > to_uint256(currentEpoch()) => getLastUserAccrueTimestamp(epoch, vault, user) == 0
+
+// STATUS: VERIFIED
+// rule to check vacuity of invariant
+rule checkFuturLastUserAccrueTimestampIsZeroInvariant(uint256 epoch, address vault, address user){
+    assert epoch > currentEpoch() => getLastUserAccrueTimestamp(epoch, vault, user) == 0;
+    assert false;
+}
 
 // first lastAccruedTimestamp
 // Ghost for initialization of lastAccruedTimestamp
@@ -227,6 +280,7 @@ rule checkLastAccruedTimestampEquality(uint epoch, address vault) {
 // write some rules about timestamp
 
 // STATUS: VERIFIED
+// PROPERY 13
 // check lastAccruedTimestamp is only increasing
 rule increasingLastAccruedTimestamp(uint256 epoch, address vault, method f){
     env e;
@@ -250,6 +304,7 @@ invariant lastAccruedTimestampLowerBound(uint256 epoch, address vault)
     }
 
 // STATUS: VERIFIED
+// PROPERY 14
 // checks lastUserAccruedTimestamp is increasing
 rule increasingLastUserAccrueTimestamp(uint256 epoch, address vault, address user, method f){
     env e;
@@ -263,6 +318,7 @@ rule increasingLastUserAccrueTimestamp(uint256 epoch, address vault, address use
 }
 
 // STATUS: VERIFIED
+// PROPERTY 15
 // checks lastUserAccruedTimestamp is block.timestap after call to accrueVault
 rule correctLastVaultAccruedTimestamp(uint256 epoch, address vault){
     env e;
@@ -292,6 +348,7 @@ invariant lastUserAccruedTimestampLowerBound(uint256 epoch, address vault, addre
     }
 
 // STATUS: VERIFIED
+// PROPERTY 16
 // checks lastUserAccruedTimestamp is block.timestap after call to accrueVault
 rule correctLastUserAccruedTimestamp(uint256 epoch, address vault, address user){
     env e;
@@ -311,72 +368,6 @@ rule correctAccrueUserRevert(uint256 epoch, address vault, address user){
 }
 
 
-// WRITE STUFF ON TIME LEFT TO ACCRUE
-
-
-/********************************
-*                               *
-*       POINTS PROPERTIES       *
-*                               *
-********************************/
-
-// STATUS: VERIFIED
-// check rule that pointsWithdrawn always less than points
-// will have to do another check for claimBulkTokensOverMultipleEpochsOptimized
-rule pointsWithdrawnUpperBound(uint epoch, address vault, address user, address token, method f) 
-filtered {
-	f -> f.selector != claimBulkTokensOverMultipleEpochsOptimized(uint256, uint256, address, address[]).selector
-} {
-    env e;
-    calldataarg args;
-    uint256 pointsBefore = getPoints(epoch, vault, user);
-    uint256 pointsWithdrawnBefore = getPointsWithdrawn(epoch, vault, user, token);
-    f(e, args);
-    uint256 pointsAfter = getPoints(epoch, vault, user);
-    uint256 pointsWithdrawnAfter = getPointsWithdrawn(epoch, vault, user, token);
-
-    assert pointsWithdrawnBefore <= pointsBefore  => pointsWithdrawnAfter <= pointsAfter, "Wrong math of points withdrawn";
-}
-
-
-// STATUS: unVERIFIED
-// check rule that points are usually non decreasing
-rule pointsNonDecreasing(uint epoch, address vault, address user, address token, method f) 
-filtered {
-	f -> f.selector != claimBulkTokensOverMultipleEpochsOptimized(uint256, uint256, address, address[]).selector
-} {
-    env e;
-    calldataarg args;
-    uint256 pointsBefore = getPoints(epoch, vault, user);
-    f(e, args);
-    uint256 pointsAfter = getPoints(epoch, vault, user);
-
-    assert pointsAfter >= pointsBefore, "points shouldnt decrease";
-}
-
-
-// STATUS: unVERIFIED
-// check rule that pointsWithdrawn are non decreasing
-rule pointsWithdrawnNonDecreasing(uint epoch, address vault, address user, address token, method f) 
- {
-    env e;
-    calldataarg args;
-    uint256 pointsWithdrawnBefore = getPointsWithdrawn(epoch, vault, user, token);
-    f(e, args);
-    uint256 pointsWithdrawnAfter = getPointsWithdrawn(epoch, vault, user, token);
-
-    assert pointsWithdrawnAfter >= pointsWithdrawnBefore, "pointsWithdrawn shouldnt decrease";
-}
-
-// check this :
-// addReward: Add rewards correctly
-// addRewards: Add rewards correctly
-// claimReward: claimsRewards correctly
-// claimrewards: claimsRewards correctly
-// claimrewardsOverMultipleEpochs: claimsRewards correctly
-// claimBulkTokensOverMultipleEpochs: claimsRewards correctly
-//DONE
-
 /********************************
 *                               *
 *       REWARDS PROPERTIES      *
@@ -384,6 +375,7 @@ rule pointsWithdrawnNonDecreasing(uint epoch, address vault, address user, addre
 ********************************/
 
 // STATUS - VERIFIED
+// PROPERTY 18
 // checks that rewards are non-decreasing
 rule increasingRewards(uint256 epochs, address vault, address token, method f) {
     env e;
@@ -396,6 +388,7 @@ rule increasingRewards(uint256 epochs, address vault, address token, method f) {
 
 
 // STATUS - VERIFIED
+// PROPERTY 19
 // checks that rewards are only changed by allowed functions
 rule rewardsAllowedFunctions(uint256 epochs, address vault, address token, method f) {
     env e;
@@ -419,6 +412,7 @@ rule sanityOfAddReward(uint256 epoch, address vault, address token, uint256 amou
     uint256 balanceAfter = tokenBalanceOf(token, currentContract);
     assert rewardsAfter + balanceBefore == rewardsBefore + balanceAfter, "addReward malfunction";
     assert e.msg.sender != currentContract => rewardsAfter == rewardsBefore + amount, "addReward malfunction";
+
 }
 
 // STATUS: VERIFIED
@@ -512,118 +506,3 @@ rule correctClaimBulkTokensOptimizedRevert(uint256 epochS, uint256 epochE, addre
     assert epochE >= currentEp => lastReverted, "claimRewardOptimized should revert";
    
 }
-
-
-
-/********************************
-*                               *
-*          UNIT TESTS           *
-*                               *
-********************************/
-
-
-// STATUS: VERIFIED
-// PROPERTY 43
-// checks integrity of handleDeposit function  
-rule integrityOfHandleDeposit(address vault, address to, uint amount){
-    env e;
-    uint256 epoch = currentEpoch();
-    uint256 sharesBefore = getShares(epoch, vault, to);
-    uint256 supplyBefore = getTotalSupply(epoch, vault);
-    handleDeposit(e, vault, to, amount);
-    uint256 sharesAfter = getShares(epoch, vault, to);
-    uint256 supplyAfter = getTotalSupply(epoch, vault);
-    assert sharesAfter == sharesBefore + amount, "wrong change in shares";
-    assert supplyAfter == supplyBefore + amount, "wrong change in supply";
-    assert getLastAccruedTimestamp(epoch, vault) == e.block.timestamp, "wrong update to vault accrue timestamp";
-    assert getLastUserAccrueTimestamp(epoch, vault, to) == e.block.timestamp, "wrong update vault accrue user timestamp";
-}
-
-// STATUS: VERIFIED
-// checks integrity of handleWithdrawal function  
-rule integrityOfHandleWithdrawal(address vault, address from, uint amount){
-    env e;
-    uint256 epoch = currentEpoch();
-    uint256 sharesBefore = getShares(epoch, vault, from);
-    uint256 supplyBefore = getTotalSupply(epoch, vault);
-    handleWithdrawal(e, vault, from, amount);
-    uint256 sharesAfter = getShares(epoch, vault, from);
-    uint256 supplyAfter = getTotalSupply(epoch, vault);
-    assert sharesAfter == sharesBefore - amount, "wrong change in shares";
-    assert supplyAfter == supplyBefore - amount, "wrong change in supply";
-    assert getLastAccruedTimestamp(epoch, vault) == e.block.timestamp, "wrong update to vault accrue timestamp";
-    assert getLastUserAccrueTimestamp(epoch, vault, from) == e.block.timestamp, "wrong update vault accrue user timestamp";
-}
-
-
-// STATUS: VERIFIED
-// checks integrity of handleTransfer function  
-rule integrityOfHandleTransfer(address vault, address from, address to, uint amount){
-    env e;
-    uint256 epoch = currentEpoch();
-    uint256 sharesFromBefore = getShares(epoch, vault, from);
-    uint256 sharesToBefore = getShares(epoch, vault, to);
-    uint256 supplyBefore = getTotalSupply(epoch, vault);
-    handleTransfer(e, vault, from, to, amount);
-    uint256 sharesFromAfter = getShares(epoch, vault, from);
-    uint256 sharesToAfter = getShares(epoch, vault, to);
-    uint256 supplyAfter = getTotalSupply(epoch, vault);
-    assert from != to => sharesToAfter == sharesToBefore + amount, "wrong change in shares To";
-    assert from != to => sharesFromAfter == sharesFromBefore - amount, "wrong change in shares From";
-    assert from == to => sharesFromAfter == sharesFromBefore , "wrong change in shares ";
-    assert supplyAfter == supplyBefore , "wrong change in supply";
-    assert getLastUserAccrueTimestamp(epoch, vault, from) == e.block.timestamp, "wrong update vault accrue user timestamp";
-    assert getLastUserAccrueTimestamp(epoch, vault, to) == e.block.timestamp, "wrong update vault accrue user timestamp";
-}
-
-
-
-// STATUS: VERIFIED
-// NOTE: the block.timestamp updates are not verified by the proved
-// it seems he has hard time and over approximate this when there is a call to another internal function
-// checks integrity of handleTransfer function  
-rule integrityOfNotifyTransfer( address from, address to, uint amount){
-    env e;
-    uint256 epoch = currentEpoch();
-    address vault = e.msg.sender;
-    uint256 sharesFromBefore = getShares(epoch, vault, from);
-    uint256 sharesToBefore = getShares(epoch, vault, to);
-    uint256 supplyBefore = getTotalSupply(epoch, vault);
-    notifyTransfer(e, from, to, amount);
-    uint256 sharesFromAfter = getShares(epoch, vault, from);
-    uint256 sharesToAfter = getShares(epoch, vault, to);
-    uint256 supplyAfter = getTotalSupply(epoch, vault);
-
-    require from != 0 || to != 0;
-
-    assert from == 0 => ((sharesToAfter == sharesToBefore + amount) && (supplyAfter == supplyBefore + amount)), "something wrong with _handleDeposit amount updates";
-    //assert from == 0 =>( getLastUserAccrueTimestamp(epoch, vault, to) >= e.block.timestamp && getLastAccruedTimestamp(epoch, vault) >= e.block.timestamp), "something wrong with _handleDeposit accrual updates";
-    assert (to == 0) => ((sharesFromAfter == sharesFromBefore - amount) && (supplyAfter == supplyBefore - amount)), "something wrong with _handleWithdrawal amount updates";  
-    //assert to == 0 =>( getLastUserAccrueTimestamp(epoch, vault, from) >= e.block.timestamp && getLastAccruedTimestamp(epoch, vault) >= e.block.timestamp), "something wrong with _handleWithdrawal accrual updates";
-    assert (to != 0 && from != 0 && to != from) => ((sharesToAfter == sharesToBefore + amount) && (sharesFromAfter == sharesFromBefore - amount) && (supplyAfter == supplyBefore )), "something wrong with _handleTransfer amount updates";  
-    assert (to != 0 && from != 0 && to == from) => ((sharesToAfter == sharesToBefore ) &&  (supplyAfter == supplyBefore )), "something wrong with _handleTransfer when to = from amount updates";  
-
-    //assert (to != 0 && from != 0) =>( getLastUserAccrueTimestamp(epoch, vault, from) >= e.block.timestamp && getLastUserAccrueTimestamp(epoch, vault, to) >= e.block.timestamp), "something wrong with _handleTransfer accrual updates";
-}
-
-
-
-// STATUS: Verified
-// checking sanity of internal function
-rule sanityOfrequireNoDuplicates(address[] arr) {
-    uint l = arr.length;
-    requireNoDuplicates@withrevert(arr);
-
-    uint i;
-    uint j;
-
-    assert (i != j && arr[i] == arr[j] && i < l && j < l ) => lastReverted;
-}
-
-
-// write rules for getUserTimeLeftToAccrue and getVaulTimeLeftToAccrue
-
-// write invariants for 
-// getVaultTimeLeftToAccrue
-// getUserTimeLeftToAccrue
-
