@@ -419,7 +419,6 @@ rule sanityOfAddReward(uint256 epoch, address vault, address token, uint256 amou
     uint256 balanceAfter = tokenBalanceOf(token, currentContract);
     assert rewardsAfter + balanceBefore == rewardsBefore + balanceAfter, "addReward malfunction";
     assert e.msg.sender != currentContract => rewardsAfter == rewardsBefore + amount, "addReward malfunction";
-
 }
 
 // STATUS: VERIFIED
@@ -524,6 +523,7 @@ rule correctClaimBulkTokensOptimizedRevert(uint256 epochS, uint256 epochE, addre
 
 
 // STATUS: VERIFIED
+// PROPERTY 43
 // checks integrity of handleDeposit function  
 rule integrityOfHandleDeposit(address vault, address to, uint amount){
     env e;
@@ -568,21 +568,24 @@ rule integrityOfHandleTransfer(address vault, address from, address to, uint amo
     uint256 sharesFromAfter = getShares(epoch, vault, from);
     uint256 sharesToAfter = getShares(epoch, vault, to);
     uint256 supplyAfter = getTotalSupply(epoch, vault);
-    assert sharesToAfter == sharesToBefore + amount, "wrong change in shares To";
-    assert sharesFromAfter == sharesFromBefore + amount, "wrong change in shares To";
+    assert from != to => sharesToAfter == sharesToBefore + amount, "wrong change in shares To";
+    assert from != to => sharesFromAfter == sharesFromBefore - amount, "wrong change in shares From";
+    assert from == to => sharesFromAfter == sharesFromBefore , "wrong change in shares ";
     assert supplyAfter == supplyBefore , "wrong change in supply";
     assert getLastUserAccrueTimestamp(epoch, vault, from) == e.block.timestamp, "wrong update vault accrue user timestamp";
     assert getLastUserAccrueTimestamp(epoch, vault, to) == e.block.timestamp, "wrong update vault accrue user timestamp";
 }
 
 
+
 // STATUS: VERIFIED
 // NOTE: the block.timestamp updates are not verified by the proved
 // it seems he has hard time and over approximate this when there is a call to another internal function
 // checks integrity of handleTransfer function  
-rule integrityOfNotifyTransfer(address vault, address from, address to, uint amount){
+rule integrityOfNotifyTransfer( address from, address to, uint amount){
     env e;
     uint256 epoch = currentEpoch();
+    address vault = e.msg.sender;
     uint256 sharesFromBefore = getShares(epoch, vault, from);
     uint256 sharesToBefore = getShares(epoch, vault, to);
     uint256 supplyBefore = getTotalSupply(epoch, vault);
@@ -595,12 +598,14 @@ rule integrityOfNotifyTransfer(address vault, address from, address to, uint amo
 
     assert from == 0 => ((sharesToAfter == sharesToBefore + amount) && (supplyAfter == supplyBefore + amount)), "something wrong with _handleDeposit amount updates";
     //assert from == 0 =>( getLastUserAccrueTimestamp(epoch, vault, to) >= e.block.timestamp && getLastAccruedTimestamp(epoch, vault) >= e.block.timestamp), "something wrong with _handleDeposit accrual updates";
-    assert to == 0 => ((sharesFromAfter == sharesFromBefore + amount) && (supplyAfter == supplyBefore - amount)), "something wrong with _handleWithdrawal amount updates";  
+    assert (to == 0) => ((sharesFromAfter == sharesFromBefore - amount) && (supplyAfter == supplyBefore - amount)), "something wrong with _handleWithdrawal amount updates";  
     //assert to == 0 =>( getLastUserAccrueTimestamp(epoch, vault, from) >= e.block.timestamp && getLastAccruedTimestamp(epoch, vault) >= e.block.timestamp), "something wrong with _handleWithdrawal accrual updates";
-    assert (to != 0 && from != 0) => ((sharesFromAfter == sharesFromBefore + amount) && (supplyAfter == supplyBefore )), "something wrong with _handleTransfer amount updates";  
+    assert (to != 0 && from != 0 && to != from) => ((sharesToAfter == sharesToBefore + amount) && (sharesFromAfter == sharesFromBefore - amount) && (supplyAfter == supplyBefore )), "something wrong with _handleTransfer amount updates";  
+    assert (to != 0 && from != 0 && to == from) => ((sharesToAfter == sharesToBefore ) &&  (supplyAfter == supplyBefore )), "something wrong with _handleTransfer when to = from amount updates";  
+
     //assert (to != 0 && from != 0) =>( getLastUserAccrueTimestamp(epoch, vault, from) >= e.block.timestamp && getLastUserAccrueTimestamp(epoch, vault, to) >= e.block.timestamp), "something wrong with _handleTransfer accrual updates";
-   
 }
+
 
 
 // STATUS: Verified

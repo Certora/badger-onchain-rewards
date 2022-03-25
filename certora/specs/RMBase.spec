@@ -38,6 +38,9 @@ methods {
     // envfree methods
     getTotalSupplyAtEpoch(uint256, address) returns(uint256, bool) envfree
     getBalanceAtEpoch(uint256, address, address) returns(uint256, bool) envfree
+    getShouldUpdateVault(uint, address) returns(bool) envfree
+    getShouldUpdateUser(uint, address, address) returns(bool) envfree
+    getTotalSupplyAtEpochReturn(uint, address) returns(uint) envfree
     requireNoDuplicates(address[]) envfree
     min(uint256, uint256) returns(uint256) envfree
     tokenBalanceOf(address, address) returns(uint256) envfree

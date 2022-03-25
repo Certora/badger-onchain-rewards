@@ -450,8 +450,8 @@ contract RewardsManagerFixed is ReentrancyGuard {
     /// @notice Utility function to specify a group of emissions for the specified epochs, vaults with tokens
     function addRewards(
         uint256[] calldata epochIds,
-        address[] calldata tokens,
         address[] calldata vaults,
+        address[] calldata tokens,
         uint256[] calldata amounts
     ) external {
         require(vaults.length == epochIds.length); // dev: length mismatch
@@ -459,7 +459,7 @@ contract RewardsManagerFixed is ReentrancyGuard {
         require(vaults.length == tokens.length); // dev: length mismatch
 
         for (uint256 i = 0; i < vaults.length; ++i) {
-            addReward(epochIds[i], tokens[i], vaults[i], amounts[i]);
+            addReward(epochIds[i], vaults[i], tokens[i], amounts[i]);
         }
     }
 
@@ -497,6 +497,7 @@ contract RewardsManagerFixed is ReentrancyGuard {
         uint256 amount
     ) external {
         // NOTE: Anybody can call this because it's indexed by msg.sender
+        require(from != address(0) || to != address(0));
         address vault = msg.sender; // Only the vault can change these
 
         if (from == address(0)) {

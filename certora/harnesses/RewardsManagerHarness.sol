@@ -125,4 +125,26 @@ contract RewardsManagerHarness is RewardsManagerFixed {
     function getPrecision() public returns (uint256) {
         return PRECISION;
     }
+
+    function getShouldUpdateVault(uint256 epochId, address vault)
+        public
+        returns (bool shouldUpdate)
+    {
+        (, shouldUpdate) = getTotalSupplyAtEpoch(epochId, vault);
+    }
+
+    function getTotalSupplyAtEpochReturn(uint256 epochId, address vault)
+        public
+        returns (uint256 totalSup)
+    {
+        (totalSup, ) = getTotalSupplyAtEpoch(epochId, vault);
+    }
+
+    function getShouldUpdateUser(
+        uint256 epochId,
+        address vault,
+        address user
+    ) public returns (bool shouldUpdate) {
+        (, shouldUpdate) = getBalanceAtEpoch(epochId, vault, user);
+    }
 }
