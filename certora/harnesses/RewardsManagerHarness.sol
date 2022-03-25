@@ -3,7 +3,9 @@ pragma solidity 0.8.10;
 
 import "../../contracts/RewardsManagerFixed.sol";
 
-contract RewardsManagerHarness is RewardsManagerFixed {
+contract RewardsManagerHarness is
+    RewardsManager /*Fixed*/
+{
     // public method calls
     function handleDeposit(
         address vault,
