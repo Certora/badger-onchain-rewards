@@ -8,7 +8,7 @@ import "itsLikeAReward.spec"
 //  * USEFUL CONSTRUCTS.                                                                                                                *
 //  *************************************************************************************************************************************
 
-definition PRECISION returns uint256 = 1000000000000000000;
+definition PRECISION() returns uint256 = 1000000000000000000;
 
 // Ghost for tracking the sum of pointWithdrawn for each epoch, vault and token across all users. This is updated using the pointsWithdrawn hook.
 ghost PWSum_EpochVaultToken_Ghost(uint256, address, address) returns uint256{
@@ -73,7 +73,7 @@ hook Sstore pointsWithdrawn [KEY uint256 epoch][KEY address vault][KEY address u
     forall uint256 e. forall address v. forall address t. 
     (e == epoch && v == vault && t == token)? 
     RewardsPayout_EpochVaultToken_Ghost@new(e, v, t) == RewardsPayout_EpochVaultToken_Ghost@old(e, v, t) + 
-    (((points_withdrawn - old_points_withdrawn)/ total_points_vault_epoch_Ghost(e, v))*Reward_Epoch_Vault_Token_Ghost(e, v, t)):
+    ((((points_withdrawn - old_points_withdrawn)*PRECISION())/ total_points_vault_epoch_Ghost(e, v))*Reward_Epoch_Vault_Token_Ghost(e, v, t))/PRECISION():
     (RewardsPayout_EpochVaultToken_Ghost@new(e, v, t) == RewardsPayout_EpochVaultToken_Ghost@old(e, v, t));
     }
 
@@ -222,33 +222,16 @@ rule testingRewardsPayoutGhost(uint256 ep, address vlt, address user, address to
 
 // invariant for checking that, once the users and the vault have been fully accrued, sum of all user shares in a given epoch
 //  and vault is exactly equal to the total supply
-invariant SumOfUserSharesEqualsTotalSupplyinEpochVaultAfterFullAccrual (uint256 ep, address vlt)
-getTotalSupply(ep, vlt) == Sum_Shares_Ghost(ep, vlt)
-{
-    preserved
-    {
-        require forall address user. getLastUserAccrueTimestamp(ep, vlt, user) >= getEpochsEndTimestamp(ep);
-        require getLastAccruedTimestamp(ep, vlt) >= getEpochsEndTimestamp(ep);
-    }
-}
-// Certora internal type error
-rule SumOfUserSharesEqualsTotalSupplyinEpochVaultAfterFullAccrualRule(method f, uint256 epoch, address vault, address token){
-    // uint256 totalSupplyBefore = getTotalSupply(epoch, vault);
-    // uint256 sumSharesBefore = Sum_Shares_Ghost(epoch, vault);
-    env e;
-    calldataarg args;
-    f(e, args);
-    require forall address u. getLastUserAccrueTimestamp(epoch, vault, u) >= getEpochsEndTimestamp(epoch);
-    require getLastAccruedTimestamp(epoch, vault) >= getEpochsEndTimestamp(epoch);
-    uint256 totalSupplyAfter = getTotalSupply(epoch, vault);
-    uint256 sumSharesAfter = Sum_Shares_Ghost(epoch, vault);
-    assert (totalSupplyAfter == sumSharesAfter, "totalSupply is not equal to the sum of user shares after complete accrual of all users in the vault in the epoch");
-}
+invariant SumOfUserSharesLETotalSupplyinEpochVault (uint256 ep, address vlt)
+getTotalSupply(ep, vlt) >= Sum_Shares_Ghost(ep, vlt)
+
+
+
 
 // invariant for checking that, once the users and the vault have been fully accrued, sum of all user points in a given epoch
 //  and vault is exactly equal to the total points
-invariant SumOfUserPointsEqualsTotalPointsinEpochVaultAfterFullAccrual (uint256 ep, address vlt)
-getTotalPoints(ep, vlt) == Sum_UserPoints_Ghost(ep, vlt)
+invariant SumOfUserPointsLETotalPointsinEpochVaultAfterFullAccrual (uint256 ep, address vlt)
+getTotalPoints(ep, vlt) >= Sum_UserPoints_Ghost(ep, vlt)
 {
     preserved
     {
@@ -257,7 +240,7 @@ getTotalPoints(ep, vlt) == Sum_UserPoints_Ghost(ep, vlt)
     }
 }
 
-rule SumOfUserPointsEqualsTotalPointsinEpochVaultAfterFullAccrualRule(method f, uint256 epoch, address vault, address token){
+rule SumOfUserPointsLETotalPointsinEpochVaultAfterFullAccrualRule(method f, uint256 epoch, address vault, address token){
     // uint256 totalSupplyBefore = getTotalSupply(epoch, vault);
     // uint256 sumSharesBefore = Sum_Shares_Ghost(epoch, vault);
     env e;
@@ -267,7 +250,7 @@ rule SumOfUserPointsEqualsTotalPointsinEpochVaultAfterFullAccrualRule(method f, 
     require getLastAccruedTimestamp(epoch, vault) >= getEpochsEndTimestamp(epoch);
     uint256 totalPointsAfter = getTotalPoints(epoch, vault);
     uint256 sumPointsAfter = Sum_UserPoints_Ghost(epoch, vault);
-    assert (totalPointsAfter == sumPointsAfter, "totalPoints is not equal to the sum of user points after complete accrual of all users in the vault in the epoch");
+    assert (totalPointsAfter >= sumPointsAfter, "totalPoints is not equal to the sum of user points after complete accrual of all users in the vault in the epoch");
 }
 
 
@@ -337,100 +320,6 @@ rule pointsWithdrawnZeroOrEqualToUserPointsRule(uint256 ep, address vault, addre
 }
 
 // Everytime there is a change in shares or points, the lastuseraccruedtime needs to be updated.
-
-// For any epoch and vault, lastuseraccruedtime == 0 => userPoints == 0
-// PASSING
-invariant UserPointsZeroIfAccrueTimeZero (uint256 ep, address vault, address user)
-getLastUserAccrueTimestamp(ep, vault, user) == 0 => getPoints(ep, vault, user) == 0
-{
-    preserved with (env e)
-    {
-        require e.block.timestamp > 0;
-    }
-}
-
-// rule proving preserve-state of invariant UserPointsZeroIfAccrueTimeZero
-// PASSING
-rule ifLastUserAccrueTimeZeroThenPointsZero (method f, uint256 epoch, address vault, address user){
-    uint256 LastUserAccrueTimeBefore = getLastUserAccrueTimestamp(epoch, vault, user);
-    uint256 userPointsBefore = getPoints(epoch, vault, user);
-    require LastUserAccrueTimeBefore == 0 => userPointsBefore == 0;
-    env e;
-    require e.block.timestamp > 0;
-    calldataarg args;
-    f(e, args);
-    uint256 LastUserAccrueTimeAfter = getLastUserAccrueTimestamp(epoch, vault, user);
-    uint256 userPointsAfter = getPoints(epoch, vault, user);
-    assert LastUserAccrueTimeAfter == 0 => userPointsAfter == 0;
-
-
-}
-
-// For any epoch and vault, lastuseraccruedtime == 0 => userPoints == 0
-// PASSING
-invariant UserSharesZeroIfAccrueTimeZero (uint256 ep, address vault, address user)
-getLastUserAccrueTimestamp(ep, vault, user) == 0 => getShares(ep, vault, user) == 0
-{
-    preserved with (env e)
-    {
-        require e.block.timestamp > 0;
-    }
-}
-
-// Rule proving preserve-state for invariant UserSharesZeroIfAccrueTimeZero
-// PASSING
-rule ifLastUserAccrueTimeZeroThenSharesZero(method f, uint256 epoch, address vault, address user){
-    uint256 LastUserAccrueTimeBefore = getLastUserAccrueTimestamp(epoch, vault, user);
-    uint256 userSharesBefore = getShares(epoch, vault, user);
-    require LastUserAccrueTimeBefore == 0 => userSharesBefore == 0;
-    env e;
-    require e.block.timestamp > 0;
-    calldataarg args;
-    f(e, args);
-    uint256 LastUserAccrueTimeAfter = getLastUserAccrueTimestamp(epoch, vault, user);
-    uint256 userSharesAfter = getShares(epoch, vault, user);
-    assert LastUserAccrueTimeAfter == 0 => userSharesAfter == 0;
-}
-
-
-// Everytime there is a change in totalPoints or totalSupply, the lastaccruedtime needs to be updated.
-
-// For any epoch and vault, lastaccruedtime == 0 => totalPoints == 0
-// PASSING
-invariant TotalPointsZeroIfAccrueTimeZero (uint256 ep, address vault)
-getLastAccruedTimestamp(ep, vault) == 0 => getTotalPoints(ep, vault) == 0
-{
-    preserved with (env e)
-    {
-        require e.block.timestamp > 0;
-    }
-}
-
-// rule proving the preserve-state of invariant TotalPointsZeroIfAccrueTimeZero
-// PASSING
-rule ifLastUserAccrueTimeZeroThenTotalPointsZero(method f, uint256 epoch, address vault){
-    uint256 LastAccrueTimeBefore = getLastAccruedTimestamp(epoch, vault);
-    uint256 TotalPointsBefore = getTotalPoints(epoch, vault);
-    require LastAccrueTimeBefore == 0 => TotalPointsBefore == 0;
-    env e;
-    require e.block.timestamp > 0;
-    calldataarg args;
-    f(e, args);
-    uint256 LastAccrueTimeAfter = getLastAccruedTimestamp(epoch, vault);
-    uint256 TotalPointsAfter = getTotalPoints(epoch, vault);
-    assert LastAccrueTimeAfter == 0 => TotalPointsAfter == 0;
-}
-
-// For any epoch and vault, lastaccruedtime == 0 => totalSupply == 0
-// PASSING
-invariant TotalSupplyZeroIfAccrueTimeZero (uint256 ep, address vault)
-getLastAccruedTimestamp(ep, vault) == 0 => getTotalSupply(ep, vault) == 0
-{
-    preserved with (env e)
-    {
-        require e.block.timestamp > 0;
-    }
-}
 
 
 // not passing the counterexample where the balance of the contract doesn't change despite token transfer to the contract
@@ -599,3 +488,96 @@ invariant FutureEpochVaultZERO(uint256 epoch, address vault, address user, addre
 )
 
 
+// For any epoch and vault, lastuseraccruedtime == 0 => userPoints == 0
+// PASSING
+invariant UserPointsZeroIfAccrueTimeZero (uint256 ep, address vault, address user)
+getLastUserAccrueTimestamp(ep, vault, user) == 0 => getPoints(ep, vault, user) == 0
+{
+    preserved with (env e)
+    {
+        require e.block.timestamp > 0;
+    }
+}
+
+// rule proving preserve-state of invariant UserPointsZeroIfAccrueTimeZero
+// PASSING
+rule ifLastUserAccrueTimeZeroThenPointsZero (method f, uint256 epoch, address vault, address user){
+    uint256 LastUserAccrueTimeBefore = getLastUserAccrueTimestamp(epoch, vault, user);
+    uint256 userPointsBefore = getPoints(epoch, vault, user);
+    require LastUserAccrueTimeBefore == 0 => userPointsBefore == 0;
+    env e;
+    require e.block.timestamp > 0;
+    calldataarg args;
+    f(e, args);
+    uint256 LastUserAccrueTimeAfter = getLastUserAccrueTimestamp(epoch, vault, user);
+    uint256 userPointsAfter = getPoints(epoch, vault, user);
+    assert LastUserAccrueTimeAfter == 0 => userPointsAfter == 0;
+
+
+}
+
+// For any epoch and vault, lastuseraccruedtime == 0 => userPoints == 0
+// PASSING
+invariant UserSharesZeroIfAccrueTimeZero (uint256 ep, address vault, address user)
+getLastUserAccrueTimestamp(ep, vault, user) == 0 => getShares(ep, vault, user) == 0
+{
+    preserved with (env e)
+    {
+        require e.block.timestamp > 0;
+    }
+}
+
+// Rule proving preserve-state for invariant UserSharesZeroIfAccrueTimeZero
+// PASSING
+rule ifLastUserAccrueTimeZeroThenSharesZero(method f, uint256 epoch, address vault, address user){
+    uint256 LastUserAccrueTimeBefore = getLastUserAccrueTimestamp(epoch, vault, user);
+    uint256 userSharesBefore = getShares(epoch, vault, user);
+    require LastUserAccrueTimeBefore == 0 => userSharesBefore == 0;
+    env e;
+    require e.block.timestamp > 0;
+    calldataarg args;
+    f(e, args);
+    uint256 LastUserAccrueTimeAfter = getLastUserAccrueTimestamp(epoch, vault, user);
+    uint256 userSharesAfter = getShares(epoch, vault, user);
+    assert LastUserAccrueTimeAfter == 0 => userSharesAfter == 0;
+}
+
+
+// Everytime there is a change in totalPoints or totalSupply, the lastaccruedtime needs to be updated.
+
+// For any epoch and vault, lastaccruedtime == 0 => totalPoints == 0
+// PASSING
+invariant TotalPointsZeroIfAccrueTimeZero (uint256 ep, address vault)
+getLastAccruedTimestamp(ep, vault) == 0 => getTotalPoints(ep, vault) == 0
+{
+    preserved with (env e)
+    {
+        require e.block.timestamp > 0;
+    }
+}
+
+// rule proving the preserve-state of invariant TotalPointsZeroIfAccrueTimeZero
+// PASSING
+rule ifLastUserAccrueTimeZeroThenTotalPointsZero(method f, uint256 epoch, address vault){
+    uint256 LastAccrueTimeBefore = getLastAccruedTimestamp(epoch, vault);
+    uint256 TotalPointsBefore = getTotalPoints(epoch, vault);
+    require LastAccrueTimeBefore == 0 => TotalPointsBefore == 0;
+    env e;
+    require e.block.timestamp > 0;
+    calldataarg args;
+    f(e, args);
+    uint256 LastAccrueTimeAfter = getLastAccruedTimestamp(epoch, vault);
+    uint256 TotalPointsAfter = getTotalPoints(epoch, vault);
+    assert LastAccrueTimeAfter == 0 => TotalPointsAfter == 0;
+}
+
+// For any epoch and vault, lastaccruedtime == 0 => totalSupply == 0
+// PASSING
+invariant TotalSupplyZeroIfAccrueTimeZero (uint256 ep, address vault)
+getLastAccruedTimestamp(ep, vault) == 0 => getTotalSupply(ep, vault) == 0
+{
+    preserved with (env e)
+    {
+        require e.block.timestamp > 0;
+    }
+}
