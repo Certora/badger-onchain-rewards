@@ -235,7 +235,6 @@ contract RewardsManager is ReentrancyGuard {
 
         pointsWithdrawn[epochId][vault][user][token] += pointsLeft;
 
-
         IERC20(token).safeTransfer(user, tokensForUser);
     }
 
