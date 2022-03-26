@@ -13,15 +13,17 @@ import {ReentrancyGuard} from "@oz/security/ReentrancyGuard.sol";
 ///
 /// 1. The notifyTransfer function uses zero address value as an indicator of actual logic to be invoked.
 /// This is error-prone for both the caller and the callee.
-/// I have removed it and use 3 explicit functions - handleDeposit, handleWithdrawal, handleTransfer instead.
+/// I have removed it and use 3 explicit functions - notifyDeposit, notifyWithdrawal, notifyTransfer instead.
 ///
-/// 2. The accrueVault and accrueUser functions are unnecessarily public, since they are always called in claimReward.
+/// 2. The accrueVault and accrueUser functions are unnecessarily public, since they are always called in claimReward and notify*** functions.
 /// More public functions, more attack surface, hence I have changed the visibility of the functions to be private.
 /// 
 /// 3. The getTotalSupplyAtEpoch and getBalanceAtEpoch functions are unnecessarily complicated. They are refactored and renamed
 /// to totalSupplyAtEpoch and balanceAtEpoch respectively, as they are not view functions anymore.
 ///
-/// 4. require the epochId > 0 in addReward function
+/// 4. Refactored accrueVault, accrueUser, getTimeLeftToAccrue and getUserTimeLeftToAccrue functions
+///
+/// 5. require the epochId > 0 in addReward function
 contract RewardsManagerFixed is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -54,9 +56,6 @@ contract RewardsManagerFixed is ReentrancyGuard {
     mapping(uint256 => mapping(address => uint256)) public totalSupply; // Sum of all deposits for a vault at an epoch totalSupply[epochId][vaultAddress]
     // User share of token X is equal to tokensForEpoch * points[epochId][vaultId][userAddress] / totalPoints[epochId][vaultAddress]
     // You accrue one point per second for each second you are in the vault
-
-
-
 
     mapping(uint256 => mapping(address => mapping(address => uint256))) public rewards; // rewards[epochId][vaultAddress][tokenAddress] = AMOUNT
 
@@ -384,8 +383,7 @@ contract RewardsManagerFixed is ReentrancyGuard {
         accrueUser(currentEpoch, vault, from);
         accrueVault(currentEpoch, vault); // We have to accrue vault as totalSupply is gonna change
 
-        // Delete last shares
-        // Delete deposit data or user
+        // Reduce shares
         shares[currentEpoch][vault][from] -= amount;
         // Reduce totalSupply
         totalSupply[currentEpoch][vault] -= amount;
@@ -393,10 +391,10 @@ contract RewardsManagerFixed is ReentrancyGuard {
 
     /// @dev handles a transfer for vault, from address to address of amount
     function notifyTransfer(address from, address to, uint256 amount) internal {
+        require (from != to, "Transfer from and to the same address");
         if (block.timestamp > epochs[currentEpoch].endTimestamp) {
             startNextEpoch();
         }
-        require (from != to, "Transfer from and to the same address");
         address vault = msg.sender;
         accrueUser(currentEpoch, vault, from);
         accrueUser(currentEpoch, vault, to);
