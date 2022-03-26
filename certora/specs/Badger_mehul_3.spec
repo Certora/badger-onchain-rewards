@@ -38,9 +38,9 @@ methods {
     claimBulkTokensOverMultipleEpochs(uint256, uint256, address, address[], address)
     claimBulkTokensOverMultipleEpochsOptimized(uint256, uint256, address, address[])
 
-    // handleDeposit(address, address, uint256)
-    // handleWithdrawal(address, address, uint256)
-    // handleTransfer(address, address, address, uint256)
+    handleDeposit(address, address, uint256)
+    handleWithdrawal(address, address, uint256)
+    handleTransfer(address, address, address, uint256)
 
     // envfree methods
     getTotalSupplyAtEpoch(uint256, address) returns(uint256, bool) envfree
@@ -61,7 +61,7 @@ definition functionAddReward(method f) returns bool =
     || f.selector == addRewards(uint256[], address[], address[], uint256[]).selector
     ;
 
-definition functionClaimReward(method f) returns bool =
+definition functionClaim(method f) returns bool =
     f.selector == claimRewards(uint256[], address[], address[], address[]).selector
     || f.selector == claimReward(uint256, address, address, address).selector
     || f.selector == claimBulkTokensOverMultipleEpochs(uint256, uint256, address, address[], address).selector
@@ -70,11 +70,27 @@ definition functionClaimReward(method f) returns bool =
 
 definition functionTransfer(method f) returns bool =
     f.selector == notifyTransfer(address, address, uint256).selector
-    // || f.selector == handleDeposit(address, address, uint256).selector
-    // || f.selector == handleWithdrawal(address, address, uint256).selector
-    // || f.selector == handleTransfer(address, address, address, uint256).selector
+    || f.selector == handleDeposit(address, address, uint256).selector
+    || f.selector == handleWithdrawal(address, address, uint256).selector
+    || f.selector == handleTransfer(address, address, address, uint256).selector
     ;
 
+definition functionUserAccrual(method f) returns bool =
+    functionTransfer(f)
+    || functionClaim(f)
+    || f.selector == accrueUser(uint256, address, address).selector
+    ;
+
+definition functionVaultAccrual(method f) returns bool =
+    functionClaim(f)
+    || f.selector == accrueVault(uint256, address).selector
+    // excluding handleTransfer
+    || f.selector == notifyTransfer(address, address, uint256).selector
+    || f.selector == handleDeposit(address, address, uint256).selector
+    || f.selector == handleWithdrawal(address, address, uint256).selector
+    ;
+
+// Epoch update
 rule invalidValueUpdate_currentEpoch(method f){
     env e; calldataarg args;
     uint256 before_currentEpoch = currentEpoch();
@@ -83,7 +99,7 @@ rule invalidValueUpdate_currentEpoch(method f){
     assert(
         (after_currentEpoch == before_currentEpoch) ||
         (f.selector == startNextEpoch().selector),
-        "Value updated in wrong function"
+        "Currrent epoch updated incorrectly"
     );
 }
 
@@ -94,8 +110,8 @@ rule invalidValueUpdate_EpochsStartTimestamp(uint256 epoch, method f){
     uint256 after_EpochsStartTimestamp = getEpochsStartTimestamp(epoch);
     assert(
         (after_EpochsStartTimestamp == before_EpochsStartTimestamp) ||
-        (f.selector == startNextEpoch().selector),
-        "Value updated in wrong function"
+        (f.selector == startNextEpoch().selector && epoch == currentEpoch()),
+        "StartTimeStamp incorrect"
     );
 }
 
@@ -105,106 +121,128 @@ rule invalidValueUpdate_EpochsEndTimestamp(uint256 epoch, method f){
     f(e, args);
     uint256 after_EpochsEndTimestamp = getEpochsEndTimestamp(epoch);
     assert(
-        (after_EpochsEndTimestamp == before_EpochsEndTimestamp) ||
-        (f.selector == startNextEpoch().selector),
-        "Value updated in wrong function"
+        (after_EpochsEndTimestamp == before_EpochsEndTimestamp) 
+        || (f.selector == startNextEpoch().selector && epoch == currentEpoch()),
+        "EndTimeStamp incorrect"
     );
 }
 
+// User points cannot decrease expected optimized claim
 rule invalidValueUpdate_Points(uint256 epoch, address vault, address user, method f){
     env e; calldataarg args;
     uint256 before_Points = getPoints(epoch, vault, user);
     f(e, args);
     uint256 after_Points = getPoints(epoch, vault, user);
     assert(
-        (after_Points == before_Points) ||
-        (false),
-        "Value updated in wrong function"
+        (after_Points == before_Points) 
+        || (
+            after_Points == 0 
+            && f.selector == claimBulkTokensOverMultipleEpochsOptimized(uint256, uint256, address, address[]).selector
+        ) 
+        || (
+            after_Points > before_Points
+            && functionUserAccrual(f)
+        ), "User points updated incorrectly"
     );
 }
 
+// Total points cannot be decreased
 rule invalidValueUpdate_TotalPoints(uint256 epoch, address vault, method f){
     env e; calldataarg args;
     uint256 before_TotalPoints = getTotalPoints(epoch, vault);
     f(e, args);
     uint256 after_TotalPoints = getTotalPoints(epoch, vault);
     assert(
-        (after_TotalPoints == before_TotalPoints) ||
-        (false),
-        "Value updated in wrong function"
+        (after_TotalPoints == before_TotalPoints)
+        || (
+            after_TotalPoints > before_TotalPoints 
+            && getLastAccruedTimestamp(epoch, vault) == e.block.timestamp
+            && functionVaultAccrual(f)
+        ), "TotalPoints updated incorrectly"
     );
 }
 
+// on claim, used points should equal total points of a user
 rule invalidValueUpdate_PointsWithdrawn(uint256 epoch, address vault, address user, address token, method f){
     env e; calldataarg args;
     uint256 before_PointsWithdrawn = getPointsWithdrawn(epoch, vault, user, token);
     f(e, args);
     uint256 after_PointsWithdrawn = getPointsWithdrawn(epoch, vault, user, token);
     assert(
-        (after_PointsWithdrawn == before_PointsWithdrawn) ||
-        (false),
-        "Value updated in wrong function"
+        (after_PointsWithdrawn == before_PointsWithdrawn)
+        || (
+            (functionClaim(f) 
+            && after_PointsWithdrawn == getPoints(epoch, vault, user)
+            )
+        ), "Value updated in wrong function"
     );
 }
 
+
+// Timestamp can only be updated in accrueVault, and set equal to block.timestamp
 rule invalidValueUpdate_LastAccruedTimestamp(uint256 epoch, address vault, method f){
     env e; calldataarg args;
     uint256 before_LastAccruedTimestamp = getLastAccruedTimestamp(epoch, vault);
     f(e, args);
     uint256 after_LastAccruedTimestamp = getLastAccruedTimestamp(epoch, vault);
     assert(
-        (after_LastAccruedTimestamp == before_LastAccruedTimestamp) ||
-        (false),
-        "Value updated in wrong function"
+        (after_LastAccruedTimestamp == before_LastAccruedTimestamp)
+        || (
+            (after_LastAccruedTimestamp == e.block.timestamp)    
+            && functionVaultAccrual(f)
+        ), "Incorrect update"
     );
 }
 
+// Timestamp can only be updated in accrueUser, and set equal to block.timestamp
 rule invalidValueUpdate_LastUserAccrueTimestamp(uint256 epoch, address vault, address user, method f){
     env e; calldataarg args;
     uint256 before_LastUserAccrueTimestamp = getLastUserAccrueTimestamp(epoch, vault, user);
     f(e, args);
     uint256 after_LastUserAccrueTimestamp = getLastUserAccrueTimestamp(epoch, vault, user);
     assert(
-        (after_LastUserAccrueTimestamp == before_LastUserAccrueTimestamp) ||
-        (
-            functionClaim(f) 
-            || functionTransfer(f) 
-            || f.selector == accrueUser(uint256, address, address).selector
-        ),"Value updated in wrong function"
+        (after_LastUserAccrueTimestamp == before_LastUserAccrueTimestamp)
+        || (
+            (after_LastUserAccrueTimestamp == e.block.timestamp)    
+            && functionUserAccrual(f)
+        ),"Incorrect update"
     );
 }
 
+// Unused variable
 rule invalidValueUpdate_LastVaultDeposit(uint256 epoch, address vault, address user, method f){
     env e; calldataarg args;
     uint256 before_LastVaultDeposit = getLastVaultDeposit(user);
     f(e, args);
     uint256 after_LastVaultDeposit = getLastVaultDeposit(user);
     assert(
-        (after_LastVaultDeposit == 0) && (before_LastVaultDeposit == 0),
-        "Last Vault deposit value shouldn't change since it wasn't used"
+        (after_LastVaultDeposit == before_LastVaultDeposit),
+        "Last Vault deposit value should never change since it wasn't used"
     );
 }
 
+// Only notify transfer can update a user's shares
 rule invalidValueUpdate_Shares(uint256 epoch, address vault, address user, method f){
     env e; calldataarg args;
     uint256 before_Shares = getShares(epoch, vault, user);
     f(e, args);
     uint256 after_Shares = getShares(epoch, vault, user);
     assert(
-        (after_Shares == before_Shares) ||
-        (functionTransfer(f) && e.msg.sender == vault),
-        "Value updated in wrong function"
+        (after_Shares == before_Shares)
+        || (functionTransfer(f)),
+        "Shares updated in wrong function"
     );
 }
 
+// Only notifyTransfer can change totalSupply
 rule invalidValueUpdate_TotalSupply(uint256 epoch, address vault, method f){
     env e; calldataarg args;
     uint256 before_TotalSupply = getTotalSupply(epoch, vault);
     f(e, args);
     uint256 after_TotalSupply = getTotalSupply(epoch, vault);
     assert(
-        (after_TotalSupply == before_TotalSupply) ||
-        (
+        (after_TotalSupply == before_TotalSupply)
+        || (
             functionTransfer(f) 
         ), "Supply updated in wrong function"
     );
@@ -220,8 +258,8 @@ rule invalidValueUpdate_Rewards(uint256 epoch, address vault, address token, met
     uint256 after_Rewards = getRewards(epoch, vault, token);
     uint256 after_VaultBalance = tokenBalanceOf(token, vault);
     assert(
-        (after_Rewards == before_Rewards) ||
-        (
+        (after_Rewards == before_Rewards)
+        || (
             functionAddReward(f) 
             && after_VaultBalance > before_VaultBalance
             && (after_VaultBalance - before_VaultBalance == after_Rewards - before_Rewards) ),
@@ -239,8 +277,9 @@ rule invalidValueUpdate_tokenBalanceOf(address token, address user, method f){
     assert(
         (after_tokenBalanceOf == before_tokenBalanceOf) 
         || functionClaim(f)
-        || (functionAddReward(f) && (user != e.msg.sender => after_tokenBalanceOf >= before_tokenBalanceOf))
-        ),
-        "Token balance updated incorrectly"
+        || (
+            functionAddReward(f) 
+            && (user != e.msg.sender => after_tokenBalanceOf >= before_tokenBalanceOf)
+        ), "Token balance updated incorrectly"
     );
 }
