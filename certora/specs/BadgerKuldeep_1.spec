@@ -1,5 +1,7 @@
 import "base.spec"
 
+// epoch, reward, handle deposit, handle withdrawn, handle deposit and notify transfer related properties here 
+
 // valid state
 // verified
 invariant non_initialized_epoch(uint256 epochId)
@@ -28,7 +30,7 @@ rule non_initialized_to_initialized_epoch(method f) {
     uint256 epochIdStartTimeStampAfterInitialization = getEpochsStartTimestamp(epochId);
     uint256 epochIdEndTimeStampAfterInitialization = getEpochsEndTimestamp(epochId);
 
-    assert epochIdStartTimeStampAfterInitialization != 0 && epochIdEndTimeStampAfterInitialization != 0 => f.selector == startNextEpoch().selector;
+    assert epochIdStartTimeStampAfterInitialization != 0 && epochIdEndTimeStampAfterInitialization != 0 => f.selector == startNextEpoch().selector, "epoch started without invoking startNextEpoch";
 }
 
 // unit test
@@ -48,8 +50,8 @@ rule start_next_epoch_work_as_expected() {
     uint256 nextEpochStartTimestamp = getEpochsStartTimestamp(nextEpochId);
     uint256 nextEpochEndTimestamp = getEpochsEndTimestamp(nextEpochId);
 
-    assert nextEpochId == currentEpochId + 1;
-    assert nextEpochEndTimestamp == nextEpochStartTimestamp + epochDuration;
+    assert nextEpochId == currentEpochId + 1, "next epoch id should be 1 plus current one";
+    assert nextEpochEndTimestamp == nextEpochStartTimestamp + epochDuration, "epoch end duration must be start duration plus 7 days in seconds";
     
 }
 
@@ -63,7 +65,7 @@ rule current_epoch_non_decreasing(method f) filtered {f -> !f.isView} {
     f(e,args);
 	uint256 updatedCurrentEpoch = currentEpoch();
 
-    assert updatedCurrentEpoch == currentEpoch || ((updatedCurrentEpoch > currentEpoch) && (updatedCurrentEpoch == currentEpoch + 1));
+    assert updatedCurrentEpoch == currentEpoch || ((updatedCurrentEpoch > currentEpoch) && (updatedCurrentEpoch == currentEpoch + 1)), "current epoch value must be non decreasing";
 	
 }
 
@@ -81,7 +83,7 @@ rule reward_token_only_added_by_addRewards_or_addReward(method f) {
 
     assert tokenBalanceOfAfter > tokenBalanceOfBefore => 
         (f.selector ==  addReward(uint256 , address , address, uint256).selector)
-        || (f.selector ==  addRewards(uint256[] , address[] , address[], uint256[]).selector);
+        || (f.selector ==  addRewards(uint256[] , address[] , address[], uint256[]).selector), "reward token balance increase by some unknown method";
 }
 
 // unit test
@@ -106,9 +108,9 @@ rule add_reward_work_as_expected() {
     uint256 tokenRewardsAfter = getRewards(epochId,vault,token);
     uint256 tokenBalanceOfAfter = tokenBalanceOf(token, currentContract);
 
-    assert tokenBalanceOfAfter >= tokenBalanceOfBefore;
-    assert tokenRewardsAfter  >= tokenRewardsBefore;
-    assert tokenBalanceOfAfter >= tokenRewardsAfter;
+    assert tokenBalanceOfAfter >= tokenBalanceOfBefore, "token balance must be non decreasing";
+    assert tokenRewardsAfter  >= tokenRewardsBefore, "total rewards must be non decreasing";
+    assert tokenBalanceOfAfter >= tokenRewardsAfter, "token balance either greater than or equal to token reward amount";
 }
 
 // variable transtition
@@ -130,8 +132,8 @@ rule user_share_and_total_supply_non_decreasing_when_user_deposits() {
     uint256 userShareAfterDeposit = getShares(epochId, vault, to);
     uint256 totalSupplyAfterDeposit = getTotalSupply(epochId, vault);
 
-    assert (amount > 0) => ((userShareAfterDeposit > userShareBeforeDeposit) && (totalSupplyAfterDeposit > totalSupplyBeforeDeposit) && (totalSupplyAfterDeposit == totalSupplyBeforeDeposit + amount));
-    assert (amount == 0) => (userShareAfterDeposit == userShareBeforeDeposit && totalSupplyAfterDeposit == totalSupplyBeforeDeposit);
+    assert (amount > 0) => ((userShareAfterDeposit > userShareBeforeDeposit) && (totalSupplyAfterDeposit > totalSupplyBeforeDeposit) && (totalSupplyAfterDeposit == totalSupplyBeforeDeposit + amount)), "deposit amount > 0 should increase user share and total supply";
+    assert (amount == 0) => (userShareAfterDeposit == userShareBeforeDeposit && totalSupplyAfterDeposit == totalSupplyBeforeDeposit), "amount = 0 means no increment for user share and total vault supply";
 
 }
 
@@ -154,8 +156,8 @@ rule user_share_and_total_supply_non_increasing_when_user_withdraws() {
     uint256 userShareAfterDeposit = getShares(epochId, vault, from);
     uint256 totalSupplyAfterDeposit = getTotalSupply(epochId, vault);
 
-  assert (amount > 0) => ((userShareAfterDeposit < userShareBeforeDeposit) && (totalSupplyAfterDeposit < totalSupplyBeforeDeposit) && (totalSupplyAfterDeposit == totalSupplyBeforeDeposit - amount));
-  assert (amount == 0) => ((userShareAfterDeposit == userShareBeforeDeposit) && (totalSupplyAfterDeposit == totalSupplyBeforeDeposit));
+  assert (amount > 0) => ((userShareAfterDeposit < userShareBeforeDeposit) && (totalSupplyAfterDeposit < totalSupplyBeforeDeposit) && (totalSupplyAfterDeposit == totalSupplyBeforeDeposit - amount)), "withdraw amount > 0 should decrease user share and total supply";
+  assert (amount == 0) => ((userShareAfterDeposit == userShareBeforeDeposit) && (totalSupplyAfterDeposit == totalSupplyBeforeDeposit)), "amount = 0 means user share and total supply should be unaffected";
 
 }
 
@@ -181,10 +183,10 @@ rule user_share_and_total_supply_updated_when_users_transfers() {
     uint256 toUserShareAfterDeposit = getShares(epochId, vault, to);
     uint256 totalSupplyAfterDeposit = getTotalSupply(epochId, vault);
 
-    assert (amount == 0) => ((fromUserShareAfterDeposit == fromUserShareBeforeDeposit) && (toUserShareAfterDeposit == toUserShareBeforeDeposit));
-    assert (amount > 0 && from == to) => ((fromUserShareAfterDeposit == fromUserShareBeforeDeposit) && (toUserShareAfterDeposit == toUserShareBeforeDeposit));
-    assert (amount > 0 && from != to) => ((fromUserShareAfterDeposit < fromUserShareBeforeDeposit) && (toUserShareAfterDeposit > toUserShareBeforeDeposit));
-    assert (totalSupplyBeforeDeposit == totalSupplyAfterDeposit);
+    assert (amount == 0) => ((fromUserShareAfterDeposit == fromUserShareBeforeDeposit) && (toUserShareAfterDeposit == toUserShareBeforeDeposit)), "amount = 0 still values got updated";
+    assert (amount > 0 && from == to) => ((fromUserShareAfterDeposit == fromUserShareBeforeDeposit) && (toUserShareAfterDeposit == toUserShareBeforeDeposit)), "from and to are same, no update";
+    assert (amount > 0 && from != to) => ((fromUserShareAfterDeposit < fromUserShareBeforeDeposit) && (toUserShareAfterDeposit > toUserShareBeforeDeposit)), "should decrease from from-user and increase in to-user";
+    assert (totalSupplyBeforeDeposit == totalSupplyAfterDeposit), "total supply must be same";
 }
 
 // unit test
@@ -217,13 +219,11 @@ rule notify_transfer_work_as_expected() {
 
 
     assert (amount == 0) => ((fromUserShareBeforeTransfer == fromUserShareAfterTransfer) && (toUserShareAfterTransfer == toUserShareBeforeTransfer) && (totalSupplyAfterTransfer == totalSupplyBeforeTransfer)), "values changed even after amount = 0";
-    // assert (amount > 0 && from == 0 && to == 0) => ((fromUserShareBeforeTransfer == fromUserShareAfterTransfer) && (toUserShareAfterTransfer == toUserShareBeforeTransfer) && (totalSupplyAfterTransfer == totalSupplyBeforeTransfer)), "from and to address same, still there is updates in values";
     assert (amount > 0 && (from == 0 && to != 0)) => ((toUserShareAfterTransfer > toUserShareBeforeTransfer) && (totalSupplyAfterTransfer > totalSupplyBeforeTransfer) && (totalSupplyAfterTransfer == totalSupplyBeforeTransfer + amount)), "to user share/total supply did not increase";
     assert (amount > 0 && (from != 0 && to == 0)) => ((fromUserShareAfterTransfer < fromUserShareBeforeTransfer) && (totalSupplyAfterTransfer < totalSupplyBeforeTransfer) && (totalSupplyAfterTransfer == totalSupplyBeforeTransfer - amount)), "from user share/total supply did not decrease";
     assert (amount > 0 && from != to) => (((fromUserShareAfterTransfer < fromUserShareBeforeTransfer) && (toUserShareAfterTransfer > toUserShareBeforeTransfer ))) && (totalSupplyBeforeTransfer == totalSupplyAfterTransfer), "values did nott update correctly";
 
 }
 
-// from == to allows users to accrue rewards???? -- BUG???
-// investigate more
+
 

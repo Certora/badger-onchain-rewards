@@ -1,5 +1,7 @@
 import "base.spec"
 
+// high level properties related to the system here
+
 // High level - Total point of a vault should be greater than equal to sum of all user points for the same epoch
 // verified
 ghost sum_of_all_points(uint256,address) returns uint256{
