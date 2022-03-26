@@ -6,6 +6,8 @@ import "../../contracts/RewardsManager.sol";
 contract RewardsManagerHarness is RewardsManager {
     
     // public method calls
+    // @note : These handle functions in the harness are bad design. 
+    // They increase the scope of functions and lead to false positives
     function handleDeposit(address vault, address to, uint256 amount) public {
         _handleDeposit(vault, to, amount);
     }

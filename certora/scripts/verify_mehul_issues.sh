@@ -4,8 +4,8 @@ certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC2
     --verify RewardsManagerHarness:certora/specs/Badgerissues_mehul.spec \
     --send_only \
     --optimistic_loop \
+    --loop_iter 1 \
     --packages @oz=certora/openzeppelin/contracts \
-    --rule sumOfUserBalancesShouldMatchTotalSupply \
-    --msg "${1}"
+    --msg "${1}" $2
 
     #     --rule rewardsMatchCalculation \ runs for >30 min

@@ -19,17 +19,19 @@ Properties
   - Epoch states :
     - Not Started => Started, cannot be ended on `startNewEpoch()` for `currentEpoch`
     - Started, cannot be ended => Started, can be ended after `SECONDS_PER_EPOCH` time
-    - 
-
   - Vault States
     - Non-accrued vaults && epoch < current_epoch => can accrue once, totalPoints = supply*Seconds per epoch
     - Accrued vaults && epoch < current_epoch => No future changes to state
 
 - Variable Transitions
   - currentEpoch increases monotonically
+  - rewards increase monotonically
+  - userPoints and totalPoints increase monotonically
   - 
 
 - High Level Properties
+  - No user should be able to claim more than their fair share in a vault
+  - Sum of user points, supply, and reward, should match the corresponding total points, supply, reward for a vault and epoch
   - 
 
 - Unit tests

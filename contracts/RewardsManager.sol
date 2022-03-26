@@ -468,7 +468,6 @@ contract RewardsManager is ReentrancyGuard {
         shares[currentEpoch][vault][from] -= amount;
         // Reduce totalSupply
         totalSupply[currentEpoch][vault] -= amount;
-
     }
 
     /// @dev handles a transfer for vault, from address to address of amount

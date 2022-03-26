@@ -37,9 +37,9 @@ methods {
     claimRewards(uint256[], address[], address[], address[])
     claimReward(uint256, address, address, address)
     claimBulkTokensOverMultipleEpochs(uint256, uint256, address, address[], address)
-    handleDeposit(address, address, uint256)
-    handleWithdrawal(address, address, uint256)
-    handleTransfer(address, address, address, uint256)
+    // handleDeposit(address, address, uint256)
+    // handleWithdrawal(address, address, uint256)
+    // handleTransfer(address, address, address, uint256)
 
     // envfree methods
     getTotalSupplyAtEpoch(uint256, address) returns(uint256, bool) envfree
@@ -173,27 +173,9 @@ hook Sstore shares[KEY uint256 epoch][KEY address vault][KEY address user] uint2
     havoc userShare assuming userShare@new(epoch, vault, user) == userShare@old(epoch, vault, user);
 }
 
-// Each user's share is less than total sum of all user shares
-invariant userShareLessThanTotal(uint256 epoch, address vault, address user)
-    userShare(epoch, vault, user) <= userShareSum(epoch, vault)
-
 // This invariant cannot be used because user shares are updated before total supply
 // invariant sumOfUserShareMatchesTotalSupply(uint256 epoch, address vault)
 //     userShareSum(epoch, vault) <= getTotalSupply(epoch, vault) // In case users haven't been accrued
-
-// No function should create a mismatch between supply and sum of user shares
-rule sumOfUserSharesShouldMatchTotalSupply(uint256 epoch, address vault, address user, method f){
-    env e; calldataarg args;
-
-    require(e.msg.sender != 0);
-    require(epoch <= currentEpoch());
-    requireInvariant sequentialEpoch(e, epoch);
-
-    require(userShareSum(epoch, vault) == getTotalSupply(epoch, vault));
-    f(e, args);
-    assert(userShareSum(epoch, vault) == getTotalSupply(epoch, vault));
-}
-
 
 
 // **** Points rules **** 
@@ -213,25 +195,17 @@ hook Sstore points[KEY uint256 epoch][KEY address vault][KEY address user] uint2
     havoc userPoints assuming userPoints@new(epoch, vault, user) == userPoints@old(epoch, vault, user);
 }
 
-invariant userPointsLessThanTotal(uint256 epoch, address vault, address user)
-    userPoints(epoch, vault, user) <= userPointsSum(epoch, vault)
-
-rule sumOfUserPointsShouldMatchTotalPoints(uint256 epoch, address vault, address user, method f){
+// Total points in a vault should never decrease, since they accumulate over time
+rule totalPointsNonDecreasing(uint256 epoch, address vault, address user, method f){
     env e; calldataarg args;
-
-    require(e.msg.sender != 0);
-    require(epoch <= currentEpoch());
-    requireInvariant sequentialEpoch(e, epoch);
-    
-    require(e.msg.sender != 0);
+    uint256 pointsBefore = getTotalPoints(epoch, vault);
     f(e, args);
-    assert(userPointsSum(epoch, vault) == getTotalPoints(epoch, vault));
+    uint256 pointsAfter = getTotalPoints(epoch, vault);
+    assert(pointsAfter >= pointsBefore, "User points decreased, shouldn't happen");
 }
 
-
-
 // **** Accrual timestamp rules **** 
-// // last Accrue times
+// last Accrue times
 ghost timeLastAccrueUser(uint256, address, address) returns uint256 {
     init_state axiom forall uint256 epoch. forall address user. forall address vault.
     timeLastAccrueUser(epoch, vault, user) == 0;
@@ -248,46 +222,4 @@ hook Sstore lastUserAccrueTimestamp[KEY uint256 epoch][KEY address vault][KEY ad
 
 hook Sstore lastAccruedTimestamp[KEY uint256 epoch][KEY address vault] uint256 value (uint256 old_value) STORAGE {
     havoc timeLastAccrueVault assuming timeLastAccrueVault@new(epoch, vault) == value;
-}
-
-// Accrue time rules : If updated, it should point to current time
-rule lastVaultAccrueAfterCurentEpochStartTimestamp(uint256 epoch, address vault,  method f) filtered {f -> !f.isView}{
-    env e; 
-    require(validTimestamp(e));
-    uint256 before = timeLastAccrueVault(epoch, vault);
-    calldataarg args;
-    f(e, args);
-    uint256 after = timeLastAccrueVault(epoch, vault);
-    assert ((before == after) || getEpochsStartTimestamp(currentEpoch()) < after);
-}
-
-rule lastUserAccrueAfterCurentgetEpochsStartTimestamp(uint256 epoch, address vault, address user,  method f) filtered {f -> !f.isView}{
-    env e; 
-    require(validTimestamp(e));
-    uint256 before = timeLastAccrueUser(epoch, vault, user);
-    calldataarg args;
-    f(e, args);
-    uint256 after = timeLastAccrueUser(epoch, vault, user);
-    assert ((before == after) || getEpochsStartTimestamp(currentEpoch()) < after);
-}
-
-// lastAccrueTimestamp non-decreasing
-rule nonDecreasingLastAccruedTimestamp(uint256 epoch, address vault, method f) filtered {f -> !f.isView}{
-    env e;
-    require(validTimestamp(e));
-    uint256 before = timeLastAccrueVault(epoch, vault);
-    calldataarg args;
-    f(e, args);
-    uint256 after = timeLastAccrueVault(epoch, vault);
-    assert(before <= after, "lastAccruedTimestamp decreased");
-}
-
-rule nonDecreasingLastUserAccrueTimestamp(uint256 epoch, address vault, address user, method f) filtered {f -> !f.isView}{
-    env e;
-    require(validTimestamp(e));
-    uint256 before = timeLastAccrueUser(epoch, vault, user);
-    calldataarg args;
-    f(e, args);
-    uint256 after = timeLastAccrueUser(epoch, vault, user);
-    assert(before <= after, "lastAccrueUserTimestamp decreased");
 }
