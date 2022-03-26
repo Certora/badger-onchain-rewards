@@ -28,7 +28,7 @@ ghost pendingRewards_Token_Ghost(address) returns uint256{
     init_state axiom forall address t. pendingRewards_Token_Ghost(t) == 0;
 }
 
-// Ghost tracking the total rewards, for a given token, paid out by the contract to all users across all epoch and vaults. 
+// Ghost tracking the total rewards paid out for a given token by the contract to all users across all epoch and vaults. 
 ghost RewardsPayout_EpochVaultToken_Ghost(uint256, address, address) returns uint256{
     init_state axiom forall uint256 e. forall address v. forall address t. RewardsPayout_EpochVaultToken_Ghost(e, v, t) == 0;
 }
@@ -65,7 +65,7 @@ hook Sstore pointsWithdrawn [KEY uint256 epoch][KEY address vault][KEY address u
     forall uint256 e. forall address v. forall address t. 
     (e == epoch && v == vault && t == token)? 
     pendingRewards_Token_Ghost@new(t) == pendingRewards_Token_Ghost@old(t) - 
-    ((((points_withdrawn - old_points_withdrawn)*PRECISION())/ total_points_vault_epoch_Ghost(e, v))*Reward_Epoch_Vault_Token_Ghost(e, v, t))/PRECISION():
+    ((((points_withdrawn - old_points_withdrawn)*PRECISION())*Reward_Epoch_Vault_Token_Ghost(e, v, t))/ total_points_vault_epoch_Ghost(e, v))/PRECISION():
     (pendingRewards_Token_Ghost@new(t) == pendingRewards_Token_Ghost@old(t));
     
     // Sum of all rewards paid out for a give token in a given epoch and vault. Once all users have claimed their rewards in a vault in an epoch,
@@ -74,7 +74,7 @@ hook Sstore pointsWithdrawn [KEY uint256 epoch][KEY address vault][KEY address u
     forall uint256 e. forall address v. forall address t. 
     (e == epoch && v == vault && t == token)? 
     RewardsPayout_EpochVaultToken_Ghost@new(e, v, t) == RewardsPayout_EpochVaultToken_Ghost@old(e, v, t) + 
-    ((((points_withdrawn - old_points_withdrawn)*PRECISION())/ total_points_vault_epoch_Ghost(e, v))*Reward_Epoch_Vault_Token_Ghost(e, v, t))/PRECISION():
+    ((((points_withdrawn - old_points_withdrawn)*PRECISION())*Reward_Epoch_Vault_Token_Ghost(e, v, t))/ total_points_vault_epoch_Ghost(e, v))/PRECISION()   :
     (RewardsPayout_EpochVaultToken_Ghost@new(e, v, t) == RewardsPayout_EpochVaultToken_Ghost@old(e, v, t));
     }
 
@@ -168,7 +168,7 @@ rule enoughBalanceToPayRewardsForTokenRule(env e, uint256 epoch, address vault, 
 
 // Once all the users have claimed rewards for a token in a given epoch and vault, the total reward payout should be equal to the rewards of the 
 // vault and epoch 
-// PASSING VACUOUS
+// PASSING
 invariant TotalRewardPayoutEqualsRewardsForVaultEpoch (uint256 ep, address vlt, address token)
 (forall address user. getPointsWithdrawn(ep, vlt, user, token) > 0) => 
 getRewards(ep, vlt, token) == RewardsPayout_EpochVaultToken_Ghost(ep, vlt, token)

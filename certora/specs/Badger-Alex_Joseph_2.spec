@@ -67,6 +67,7 @@ invariant AccruedVaultTotalPointsGEUserPointsInVault(env e, uint256 epoch, addre
 (getLastAccruedTimestamp(epoch, vault) < e.block.timestamp)) => 
 (getTotalPoints(epoch, vault) >= getPoints(epoch, vault, user))
 
+// Still need a rule for preserve state
 // PASSING
 rule AccruedVaultTotalPointsGEUserPointsInVaultRule(uint256 epoch, address vault, address user, method f){
     requireInvariant UserPointsZeroIfAccrueTimeZero(epoch, vault, user);
@@ -123,6 +124,28 @@ rule ClaimRewardsWorksCorrectly(env e, uint256 epoch, address vault, address use
     assert(tokenBalanceUserAfter == tokenBalanceUserBefore + payouttokens,"Token transfer amount not correct");
     assert(pointsWithdrawnAfter == Points,"Points withdrawn not updated correctly");
 }
+
+// Checking if there is a way for a user to call claimRewards() function and not get any rewards despite having unwithdrawn points.
+
+rule UserGetRewardsIfTheyHaveUnwithdrawnPoints(uint256 epoch, address vault, address user, address token, method f){
+    uint256 pointsWithdrawnBefore = getPointsWithdrawn(epoch, vault, user, token);
+    uint256 pointsBefore = getPoints(epoch, vault, user);
+    uint256 rewards = getRewards(epoch, vault, token);
+    uint256 userTokenBalanceBefore = tokenBalanceOf(token, user);
+    uint256 contractTokenBalanceBefore = tokenBalanceOf(token, currentContract);
+    require pointsWithdrawnBefore < pointsBefore;
+    require rewards > 0;
+    require user != currentContract;
+    env e;
+    claimReward(e, epoch, vault, token, user);
+    uint256 pointsWithdrawnAfter = getPointsWithdrawn(epoch, vault, user, token);
+    uint256 pointsAfter = getPoints(epoch, vault, user);
+    uint256 userTokenBalanceAfter = tokenBalanceOf(token, user);
+    uint256 contractTokenBalanceAfter = tokenBalanceOf(token, currentContract);
+    assert (userTokenBalanceAfter > userTokenBalanceBefore, "User did not get rewards despite having points");
+}
+
+
 
 
 // For any epoch and vault, lastuseraccruedtime == 0 => userPoints == 0
