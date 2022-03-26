@@ -18,7 +18,7 @@ methods {
     getLastAccruedTimestamp(uint256, address) returns(uint256) envfree
     getLastUserAccrueTimestamp(uint256, address, address) returns(uint256) envfree
     getLastVaultDeposit(address) returns(uint256) envfree
-    getShares(uint256, address) returns(uint256) envfree
+    getShares(uint256, address, address) returns(uint256) envfree
     getTotalSupply(uint256, address) returns(uint256) envfree
     getRewards(uint256 , address, address) returns(uint256) envfree
     getEligibleRewardsForAmount(uint256 , address, address, address, uint256) returns(uint256) envfree
@@ -28,7 +28,6 @@ methods {
     startNextEpoch()
     accrueVault(uint256, address)
     getVaultTimeLeftToAccrue(uint256, address) returns(uint256)
-    claimBulkTokensOverMultipleEpochsOptimized(uint256, uint256, address, address[])
     addRewards(uint256[], address[], address[], uint256[])
     addReward(uint256, address, address, uint256)
     notifyTransfer(address, address, uint256)
@@ -37,6 +36,8 @@ methods {
     claimRewards(uint256[], address[], address[], address[])
     claimReward(uint256, address, address, address)
     claimBulkTokensOverMultipleEpochs(uint256, uint256, address, address[], address)
+    claimBulkTokensOverMultipleEpochsOptimized(uint256, uint256, address, address[])
+
     // handleDeposit(address, address, uint256)
     // handleWithdrawal(address, address, uint256)
     // handleTransfer(address, address, address, uint256)
@@ -217,4 +218,24 @@ hook Sstore lastUserAccrueTimestamp[KEY uint256 epoch][KEY address vault][KEY ad
 
 hook Sstore lastAccruedTimestamp[KEY uint256 epoch][KEY address vault] uint256 value (uint256 old_value) STORAGE {
     havoc timeLastAccrueVault assuming timeLastAccrueVault@new(epoch, vault) == value;
+}
+
+// Supply update check
+// Excluding the bug in the contract
+rule notifyTransferUpdatesCorrectly (address vault, address from, address to, uint256 amount){
+    env e;
+    require(from != 0 || to != 0);
+    require(e.msg.sender == vault);
+    uint256 beforeShare_from = getShares(currentEpoch(), vault, from);
+    uint256 beforeShare_to = getShares(currentEpoch(), vault, to);
+    uint256 beforeTotalSupply = getTotalSupply(currentEpoch(), vault);
+    notifyTransfer(e, from, to, amount);
+    uint256 afterShare_from = getShares(currentEpoch(), vault, from);
+    uint256 afterShare_to = getShares(currentEpoch(), vault, to);
+    uint256 afterTotalSupply = getTotalSupply(currentEpoch(), vault);
+    assert(
+        afterShare_from <= beforeShare_from
+        && afterShare_to >= beforeShare_to
+        && afterShare_to - beforeShare_to + afterShare_from - beforeShare_from == afterTotalSupply - beforeTotalSupply
+        , "Incorrect notifyTransfer function");
 }

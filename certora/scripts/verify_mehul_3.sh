@@ -1,7 +1,7 @@
 solc-select use 0.8.10
 
 certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC20A.sol certora/helpers/DummyERC20B.sol \
-    --verify RewardsManagerHarness:certora/specs/Badger_mehul_1.spec \
+    --verify RewardsManagerHarness:certora/specs/Badger_mehul_3.spec \
     --send_only \
     --optimistic_loop \
     --loop_iter 1 \
