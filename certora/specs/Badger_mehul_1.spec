@@ -49,11 +49,6 @@ methods {
     tokenBalanceOf(address, address) returns(uint256) envfree
 }
 
-// **** Utility functions **** 
-function validTimestamp(env e) returns bool{
-    return (e.block.timestamp >= getEpochsStartTimestamp(currentEpoch()));
-}
-
 
 // **** Epoch Rules **** 
 //Invariant : New epoch should start after previous epoch is over
@@ -170,7 +165,7 @@ ghost userShareSum(uint256, address) returns uint256 {
 
 hook Sstore shares[KEY uint256 epoch][KEY address vault][KEY address user] uint256 value (uint256 old_value) STORAGE {
     havoc userShareSum assuming userShareSum@new(epoch, vault) == userShareSum@old(epoch, vault) + value - old_value;
-    havoc userShare assuming userShare@new(epoch, vault, user) == userShare@old(epoch, vault, user);
+    havoc userShare assuming userShare@new(epoch, vault, user) == value;
 }
 
 // This invariant cannot be used because user shares are updated before total supply
@@ -192,7 +187,7 @@ ghost userPointsSum(uint256, address) returns uint256 {
 
 hook Sstore points[KEY uint256 epoch][KEY address vault][KEY address user] uint256 value (uint256 old_value) STORAGE {
     havoc userPointsSum assuming userPointsSum@new(epoch, vault) == userPointsSum@old(epoch, vault) + value - old_value;
-    havoc userPoints assuming userPoints@new(epoch, vault, user) == userPoints@old(epoch, vault, user);
+    havoc userPoints assuming userPoints@new(epoch, vault, user) == value;
 }
 
 // Total points in a vault should never decrease, since they accumulate over time

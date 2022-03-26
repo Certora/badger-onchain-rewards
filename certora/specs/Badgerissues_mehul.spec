@@ -1,6 +1,11 @@
 // Rules for badgerDao Care
 import "Badger_mehul_1.spec"
 
+// **** Utility functions **** 
+function validTimestamp(env e) returns bool{
+    return (e.block.timestamp >= getEpochsStartTimestamp(currentEpoch()));
+}
+
 //Invariant : New epoch should start after previous epoch is over
 invariant sequentialEpoch(env e, uint256 epoch) 
     (epoch <= currentEpoch() && epoch > 0) => (
@@ -16,7 +21,12 @@ invariant sequentialEpoch(env e, uint256 epoch)
     }
 
 
+// Issues in the contract
+
 // Vault accrue
+// @note : Fails for epoch = 0
+// @note : solution - require (epoch>0)
+// or disallow adding tokens and increasing totalSupply before epoch 1
 rule unaccruedVaultUpdateValueMatches(uint256 epoch, address vault){
     env e;
 
@@ -37,13 +47,14 @@ rule unaccruedVaultUpdateValueMatches(uint256 epoch, address vault){
 
 // Shares / supply
 // Each user's share is less than total sum of all user shares
+// @note : Fails during notifyTransfer (0x0, 0x0, amount) - increases vault share without updating total supply
 invariant userShareLessThanTotal(uint256 epoch, address vault, address user)
     userShare(epoch, vault, user) <= userShareSum(epoch, vault)
 
 
 // Sum of user balances should equal total supply - IMPORTANT
-// Fails during notifyTransfer (0x0, 0x0, amount) - increases shares without any change to balances
-// No function should create a mismatch between supply and sum of user shares
+// @note : Fails during notifyTransfer (0x0, 0x0, amount) - increases shares without any change to balances
+// @note : No function should create a mismatch between supply and sum of user shares
 rule sumOfUserSharesShouldMatchTotalSupply(uint256 epoch, address vault, address user, method f){
     env e; calldataarg args;
 
@@ -57,7 +68,6 @@ rule sumOfUserSharesShouldMatchTotalSupply(uint256 epoch, address vault, address
 }
 
 // points
-
 invariant userPointsLessThanTotal(uint256 epoch, address vault, address user)
     userPoints(epoch, vault, user) <= userPointsSum(epoch, vault)
     
@@ -89,6 +99,7 @@ rule userPointsNonDecreasing(uint256 epoch, address vault, address user, method 
 rule lastVaultAccrueAfterCurentEpochStart(uint256 epoch, address vault,  method f) filtered {f -> !f.isView}{
     env e; 
     requireInvariant sequentialEpoch(e, epoch);
+    require(validTimestamp(e));
     uint256 before = timeLastAccrueVault(epoch, vault);
     calldataarg args;
     f(e, args);
@@ -99,6 +110,7 @@ rule lastVaultAccrueAfterCurentEpochStart(uint256 epoch, address vault,  method 
 rule lastUserAccrueAfterCurentEpochStart(uint256 epoch, address vault, address user,  method f) filtered {f -> !f.isView}{
     env e; 
     requireInvariant sequentialEpoch(e, epoch);
+    require(validTimestamp(e));
     uint256 before = timeLastAccrueUser(epoch, vault, user);
     calldataarg args;
     f(e, args);
@@ -110,6 +122,7 @@ rule lastUserAccrueAfterCurentEpochStart(uint256 epoch, address vault, address u
 rule nonDecreasingLastAccruedTimestamp(uint256 epoch, address vault, method f) filtered {f -> !f.isView}{
     env e;
     requireInvariant sequentialEpoch(e, epoch);
+    require(validTimestamp(e));
     uint256 before = timeLastAccrueVault(epoch, vault);
     calldataarg args;
     f(e, args);
@@ -120,6 +133,7 @@ rule nonDecreasingLastAccruedTimestamp(uint256 epoch, address vault, method f) f
 rule nonDecreasingLastUserAccrueTimestamp(uint256 epoch, address vault, address user, method f) filtered {f -> !f.isView}{
     env e;
     requireInvariant sequentialEpoch(e, epoch);
+    require(validTimestamp(e));
     uint256 before = timeLastAccrueUser(epoch, vault, user);
     calldataarg args;
     f(e, args);
