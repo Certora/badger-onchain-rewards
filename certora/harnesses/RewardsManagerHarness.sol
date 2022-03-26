@@ -4,7 +4,7 @@ pragma solidity 0.8.10;
 import "../../contracts/RewardsManager.sol";
 
 contract RewardsManagerHarness is RewardsManager {
-    
+
     // public method calls
     function handleDeposit(address vault, address to, uint256 amount) public {
         _handleDeposit(vault, to, amount);
@@ -18,7 +18,7 @@ contract RewardsManagerHarness is RewardsManager {
         _handleTransfer(vault, from, to, amount);
     }
 
-    function requireNoDuplicates(address[] memory arr) public {
+    function requireNoDuplicates(address[] memory arr) public pure {
         _requireNoDuplicates(arr);
     }
 
@@ -26,57 +26,69 @@ contract RewardsManagerHarness is RewardsManager {
         return _min(a, b);
     }
 
+    function max(uint256 a, uint256 b) public pure returns (uint256) {
+        return a > b ? a : b;
+    }
+
 
     // map getters
-    function getEpochsStartTimestamp(uint256 epochId) public returns (uint256) {
+    function getEpochsStartTimestamp(uint256 epochId) public view returns (uint256) {
         return epochs[epochId].startTimestamp;
     }
 
-    function getEpochsEndTimestamp(uint256 epochId) public returns (uint256) {
+    function getEpochsEndTimestamp(uint256 epochId) public view returns (uint256) {
         return epochs[epochId].endTimestamp;
     }
 
-    function getPoints(uint256 epochId, address vaultAddress, address userAddress) public returns (uint256) {
+    function getPoints(uint256 epochId, address vaultAddress, address userAddress) public view returns (uint256) {
         return points[epochId][vaultAddress][userAddress];
     }
 
-    function getPointsWithdrawn(uint256 epochId, address vaultAddress, address userAddress, address rewardToken) public returns (uint256) {
+    function getPointsWithdrawn(uint256 epochId, address vaultAddress, address userAddress, address rewardToken) public view returns (uint256) {
         return pointsWithdrawn[epochId][vaultAddress][userAddress][rewardToken];
     }
 
-    function getTotalPoints(uint256 epochId, address vaultAddress) public returns (uint256) {
+    function getTotalPoints(uint256 epochId, address vaultAddress) public view returns (uint256) {
         return totalPoints[epochId][vaultAddress];
     }
 
-    function getLastAccruedTimestamp(uint256 epochId, address vaultAddress) public returns (uint256) {
+    function getLastAccruedTimestamp(uint256 epochId, address vaultAddress) public view returns (uint256) {
         return lastAccruedTimestamp[epochId][vaultAddress];
     }
 
-    function getLastUserAccrueTimestamp(uint256 epochId, address vaultAddress, address userAddress) public returns (uint256) {
+    function getLastUserAccrueTimestamp(uint256 epochId, address vaultAddress, address userAddress) public view returns (uint256) {
         return lastUserAccrueTimestamp[epochId][vaultAddress][userAddress];
     }
 
-    function getLastVaultDeposit(address userAddress) public returns (uint256) {
+    function getLastVaultDeposit(address userAddress) public view returns (uint256) {
         return lastVaultDeposit[userAddress];
     }
 
-    function getShares(uint256 epochId, address vaultAddress, address userAddress) public returns (uint256) {
+    function getShares(uint256 epochId, address vaultAddress, address userAddress) public view returns (uint256) {
         return shares[epochId][vaultAddress][userAddress];
     }
 
-    function getTotalSupply(uint256 epochId, address vaultAddress) public returns (uint256) {
+    function getTotalSupply(uint256 epochId, address vaultAddress) public view returns (uint256) {
         return totalSupply[epochId][vaultAddress];
     }
 
-    function getRewards(uint256 epochId, address vaultAddress, address tokenAddress) public returns (uint256) {
+    function getRewards(uint256 epochId, address vaultAddress, address tokenAddress) public view returns (uint256) {
         return rewards[epochId][vaultAddress][tokenAddress];
     }
 
-    function tokenBalanceOf(address token, address user) public returns (uint256) {
+    function tokenBalanceOf(address token, address user) public view returns (uint256) {
         return IERC20(token).balanceOf(user);
     }
 
-    // space to create your own destiny 
+    function tokenAllowance(address token, address user, address spender) public view returns (uint256) {
+        return IERC20(token).allowance(user, spender);
+    }
+
+    function getRewardsManagerAddress() public view returns (address) {
+        return address(this);
+    }
+
+    // space to create your own destiny
 
 
 }
