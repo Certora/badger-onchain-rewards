@@ -79,10 +79,10 @@ contract RewardsManagerFixed is ReentrancyGuard {
 
         lastAccruedTimestamp[epochId][vault] = block.timestamp;
 
-        uint256 supply = totalSupplyAtEpoch(epochId, vault);
-        if (supply > 0) {
-            uint256 timeLeftToAccrue = getVaultTimeLeftToAccrue(epochId, vault);
-            if(timeLeftToAccrue > 0) {
+        uint256 timeLeftToAccrue = getVaultTimeLeftToAccrue(epochId, vault);
+        if(timeLeftToAccrue > 0) {
+            uint256 supply = totalSupplyAtEpoch(epochId, vault); // this can be an expensive call
+            if (supply > 0) {
                 totalPoints[epochId][vault] += timeLeftToAccrue * supply;
             }
         }
@@ -416,12 +416,10 @@ contract RewardsManagerFixed is ReentrancyGuard {
         require(epochId <= currentEpoch); // dev: !can only accrue up to current epoch
 
         lastUserAccrueTimestamp[epochId][vault][user] = block.timestamp;
-        uint256 currentBalance = balanceAtEpoch(epochId, vault, user);
-
-        // Optimization:  No balance, return early
-        if(currentBalance > 0){
-            uint256 timeInEpochSinceLastAccrue = getUserTimeLeftToAccrue(epochId, vault, user);
-            if (timeInEpochSinceLastAccrue > 0) {
+        uint256 timeInEpochSinceLastAccrue = getUserTimeLeftToAccrue(epochId, vault, user);
+        if (timeInEpochSinceLastAccrue > 0) {
+            uint256 currentBalance = balanceAtEpoch(epochId, vault, user); // this can be an expensive call
+            if(currentBalance > 0){
                 points[epochId][vault][user] += currentBalance * timeInEpochSinceLastAccrue;
             }
         }
