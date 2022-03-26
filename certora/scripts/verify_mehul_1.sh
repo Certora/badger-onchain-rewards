@@ -4,8 +4,8 @@ certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC2
     --verify RewardsManagerHarness:certora/specs/Badger_mehul_1.spec \
     --send_only \
     --optimistic_loop \
-    --loop_iter 2 \
+    --loop_iter 1 \
     --packages @oz=certora/openzeppelin/contracts \
-    --msg "$1"
+    --msg "$1" $2
 
 #     --loop_iter 2   --rule $1 \

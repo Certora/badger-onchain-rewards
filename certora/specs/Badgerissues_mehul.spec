@@ -42,7 +42,7 @@ rule unaccruedVaultUpdateValueMatches(uint256 epoch, address vault){
     env e;
     //requireInvariant epochOver(epoch, e);
     //requireInvariant epochNotStarted(epoch, e);
-    requireInvariant epochSequential(epoch);
+    //requireInvariant epochSequential(epoch);
     require(timeLastAccrueVault(epoch, vault) <= getEpochsStartTimestamp(epoch));
 
     uint256 pointsBefore = getTotalPoints(epoch, vault);
@@ -58,12 +58,31 @@ rule unaccruedVaultUpdateValueMatches(uint256 epoch, address vault){
     );
 }
 
+// Points
+// ghost userPoints(uint256, address, address) returns uint256 {
+//     init_state axiom forall uint256 epoch. forall address user. forall address vault.
+//     userPoints(epoch, vault, user) == 0;
+// }
+
+// hook Sstore totalPoints[KEY uint256 epoch][KEY address vault] uint256 value (uint256 old_value) STORAGE {
+//     havoc vaultPoints assuming vaultPoints@new(epoch, vault) = value;
+// }
+
+// // Ghost to calculate sum of user balance at any epoch
+// ghost vaultPoints(uint256, address) returns uint256 {
+//     init_state axiom forall uint256 epoch. forall address vault.
+//     tvaultPoints(epoch, vault) == 0;
+// }
+
+// hook Sstore totalPoints[KEY uint256 epoch][KEY address vault] uint256 value (uint256 old_value) STORAGE {
+//     havoc vaultPoints assuming vaultPoints@new(epoch, vault) = value;
+// }
 
 // Sum of user balances should equal total supply - IMPORTANT
 // Fails during notifyTransfer (0x0, 0x0, amount) - increases shares without any change to balances
 rule sumOfUserBalancesShouldMatchTotalSupply(uint256 epoch, address vault, address user, method f){
     require(epoch <= currentEpoch());
-    requireInvariant epochSequential(epoch);
+    //requireInvariant epochSequential(epoch);
     require(userShareSum(epoch, vault) == getTotalSupply(epoch, vault));
     env e; calldataarg args;
     require(e.msg.sender != 0);
