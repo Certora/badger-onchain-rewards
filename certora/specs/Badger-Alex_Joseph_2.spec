@@ -62,7 +62,7 @@ getTotalSupply(ep, vlt) == Sum_Shares_Ghost(ep, vlt)
 rule AccruedVaultTotalPointsGEUserPointsInVaultRule(uint256 epoch, address vault, address user, method f){
     requireInvariant UserPointsZeroIfAccrueTimeZero(epoch, vault, user);
     requireInvariant TotalPointsZeroIfAccrueTimeZero(epoch, vault);
-    requireInvariant SumOfUserSharesLETotalSupplyinEpochVault(epoch, vault);
+    requireInvariant SumOfUserSharesEqualTotalSupplyinEpochVault(epoch, vault);
     uint256 lastAccrueTimeBefore = getLastAccruedTimestamp(epoch, vault);
     uint256 lastUserAccrueTimeBefore = getLastUserAccrueTimestamp(epoch, vault, user);
     uint256 totalPointsBefore = getTotalPoints(epoch, vault);
@@ -270,8 +270,7 @@ invariant FutureEpochVaultZERO(uint256 epoch, address vault, address user, addre
     getPointsWithdrawn(epoch, vault, user, token) == 0 &&
     getTotalPoints(epoch, vault) == 0 &&
     getShares(epoch, vault, user) == 0 &&
-    getTotalSupply(epoch, vault) == 0 &&
-    getRewards(epoch,vault, token) == 0
+    getTotalSupply(epoch, vault) == 0
 )
 
 
