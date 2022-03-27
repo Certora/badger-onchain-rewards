@@ -149,64 +149,67 @@ rule check_addReward_require_epoch(uint256 epochId, address vault, address token
   // assert false;
 }
 
-// // does not pass. don't understand the reason
-// rule check_accrueUser_require_epoch(uint256 epochId, address vault, address user) {
-//   env e;
-//   uint256 currEpoch = currentEpoch();
-//   require e.msg.value != 0;
-//   require epochId > currEpoch;
-//   accrueUser@withrevert(e, epochId, vault, user);
-//   assert epochId > currentEpoch() => lastReverted, "can accrue user only before or current epoch";
-//   assert currEpoch == currentEpoch();
-//   // assert false;
-// }
+// does not pass. don't understand the reason
+rule check_accrueUser_require_epoch(uint256 epochId, address vault, address user) {
+  env e;
+  uint256 currEpoch = currentEpoch();
+  require e.msg.value != 0;
+  accrueUser@withrevert(e, epochId, vault, user);
+  assert epochId > currEpoch => lastReverted, "can accrue user only before or current epoch";
+  assert currEpoch == currentEpoch();
+  // assert false;
+}
 
-// // does not pass. don't understand the reason
-// rule check_accrueVault_require_epoch(uint256 epochId, address vault) {
-//   env e;
-//   require e.msg.value != 0;
-//   require epochId > currentEpoch();
+// does not pass. don't understand the reason
+rule check_accrueVault_require_epoch(uint256 epochId, address vault) {
+  env e;
+  uint256 currEpoch = currentEpoch();
+  require e.msg.value != 0;
 
-//   accrueVault@withrevert(e, epochId, vault);
-//   assert epochId > currentEpoch() => lastReverted, "can accrue vault only before or current epoch";
-//   // assert false;
-// }
+  accrueVault@withrevert(e, epochId, vault);
+  assert epochId > currEpoch => lastReverted, "can accrue vault only before or current epoch";
+  assert currEpoch == currentEpoch();
+  // assert false;
+}
 
-// // does not pass. don't understand the reason
-// rule check_startNextEpoch_require_timestamp(){
-//     env e;
-//     uint256 prevEpoch = currentEpoch();
-//     startNextEpoch@withrevert(e);    
-//     assert e.block.timestamp <= getEpochsEndTimestamp(prevEpoch) => lastReverted, "can startNextEpoch only after the current one finishes";   
-//     // assert false;
-// }
+// does not pass. don't understand the reason
+rule check_startNextEpoch_require_timestamp(){
+    env e;
+    uint256 prevEpoch = currentEpoch();
+    startNextEpoch@withrevert(e);    
+    bool lastReverted_ = lastReverted;
+    assert e.block.timestamp <= getEpochsEndTimestamp(prevEpoch) => lastReverted_, "can startNextEpoch only after the current one finishes";   
+    // assert false;
+}
  
-// // does not pass. don't understand the reason, might be related to double loop
-// rule check_claimBulkTokensOverMultipleEpochs_require_zero_pointsWithdrawn(uint256 epochId, address vault, address[] tokens, address user) {
-//   env e;
-//   require getLastAccruedTimestamp(epochId, vault)>0;
-//   require getLastUserAccrueTimestamp(epochId, vault, user)>0;
-//   require epochId < currentEpoch();
-//   require tokens.length == 1;
-//   require e.msg.value != 0;
-//   claimBulkTokensOverMultipleEpochs@withrevert(e, epochId, epochId, vault, tokens, user);
-//   assert getPointsWithdrawn(epochId, vault, user, tokens[0])!=0 => lastReverted, "You already accrued during the epoch, cannot optimize";
-//   // assert false;
-// }
+// does not pass. don't understand the reason, might be related to double loop
+rule check_claimBulkTokensOverMultipleEpochs_require_zero_pointsWithdrawn(uint256 epochId, address vault, address[] tokens, address user) {
+  env e;
+  require getLastAccruedTimestamp(epochId, vault)>0;
+  require getLastUserAccrueTimestamp(epochId, vault, user)>0;
+  require epochId < currentEpoch();
+  require tokens.length == 1;
+  require e.msg.value != 0;
+  claimBulkTokensOverMultipleEpochs@withrevert(e, epochId, epochId, vault, tokens, user);
+  bool lastReverted_ = lastReverted;
+  assert getPointsWithdrawn(epochId, vault, user, tokens[0])!=0 => lastReverted_, "You already accrued during the epoch, cannot optimize";
+  // assert false;
+}
 
-// // does not pass. don't understand the reason, might be related to double loops
-// rule check_claimBulkTokensOverMultipleEpochsOptimized_require_zero_pointsWithdrawn(uint256 epochId, address vault, address[] tokens) {
-//   env e;
-//   require getLastAccruedTimestamp(epochId, vault)>0;
-//   require getLastUserAccrueTimestamp(epochId, vault, e.msg.sender)>0;
-//   require epochId < currentEpoch();
-//   require tokens.length == 1;
-//   require e.msg.value != 0;
+// does not pass. don't understand the reason, might be related to double loops
+rule check_claimBulkTokensOverMultipleEpochsOptimized_require_zero_pointsWithdrawn(uint256 epochId, address vault, address[] tokens) {
+  env e;
+  require getLastAccruedTimestamp(epochId, vault)>0;
+  require getLastUserAccrueTimestamp(epochId, vault, e.msg.sender)>0;
+  require epochId < currentEpoch();
+  require tokens.length == 1;
+  require e.msg.value != 0;
 
-//   claimBulkTokensOverMultipleEpochsOptimized@withrevert(e, epochId, epochId, vault, tokens);
-//   assert getPointsWithdrawn(epochId, vault, e.msg.sender, tokens[0])!=0 => lastReverted, "You already accrued during the epoch, cannot optimize";
-//   // assert false;
-// }
+  claimBulkTokensOverMultipleEpochsOptimized@withrevert(e, epochId, epochId, vault, tokens);
+  bool lastReverted_ = lastReverted;
+  assert getPointsWithdrawn(epochId, vault, e.msg.sender, tokens[0])!=0 => lastReverted_, "You already accrued during the epoch, cannot optimize";
+  // assert false;
+}
 
 // ***********************************
 // ****** Check No Interference ******
