@@ -19,7 +19,7 @@ import "itsLikeAReward.spec"
 // The transferred rewards will remain trapped in the contract. This can be mitigated by adding a require(epochId >= currentEpoch && epochId > 0)
 // at the beginning of the addRewards() function.
 // FAILING
-invariant CurrentEpochZeroAllValuesZero(address vault, address user, address token)
+invariant CurrentEpochZeroThenEpochValuesPointsRewardsZero(address vault, address user, address token)
 currentEpoch() == 0 => (
     getEpochsStartTimestamp(currentEpoch()) == 0 &&
     getEpochsEndTimestamp(currentEpoch()) == 0 &&
@@ -39,6 +39,7 @@ currentEpoch() == 0 => (
 // This rule checks if there is a way for a user to call claimRewards() function and not get any rewards despite having unwithdrawn points.
 // The counter-example shows a case where the payout calculation yields 0 because of rounderdown errors but the pointsWithdrawn are still
 // wrongly updated to indicate that the user has withdrawn their rewards.
+// https://prover.certora.com/output/64072/4506d3721e81cc95a113/?anonymousKey=8eafee3051de84a35a4a292ffa89d5fab6165544
 
 //FAILING 
 rule UserGetRewardsIfTheyHaveUnwithdrawnPoints(uint256 epoch, address vault, address user, address token, method f){

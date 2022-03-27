@@ -128,14 +128,18 @@ hook Sstore shares[KEY uint256 epoch][KEY address vault][KEY address user] uint2
 //  * INVARIANTS AND RULES                                                                                                              *
 //  *************************************************************************************************************************************
 
-// SOLVENCY CHECK: Rule to check that for a given token, the contract hold enough balance to payout all rewards 
+// SOLVENCY CHECK: Rule to check that for a given token, the contract holds enough balance to payout all rewards 
 // in a given vault and epoch. If this invariant doesn't hold, Rewards Manager will not be able to payout all 
-// the rewards owed to the users.
-
+// the rewards owed to the users in a given vault and epoch.
+// FAILING
 invariant enoughBalanceToPayRewardsForEpochVaultToken (uint256 epoch, address vault, address token)
 tokenBalanceOf(token, currentContract) >= (getTotalPoints(epoch, vault) - PWSum_EpochVaultToken_Ghost(epoch, vault, token))*getRewards(epoch, vault, token)/getTotalPoints(epoch,vault)
 
 
+// SOLVENCY CHECK: Rule to check that for a given token, the contract holds enough balance to payout all rewards 
+// across all vaults and epochs. If this invariant doesn't hold, Rewards Manager will not be able to payout all 
+// the rewards owed to the users.
+// FAILING
 invariant enoughBalanceToPayRewardsForToken (address token)
 tokenBalanceOf(token, currentContract) >= pendingRewards_Token_Ghost(token)
 
@@ -168,7 +172,7 @@ rule enoughBalanceToPayRewardsForTokenRule(env e, uint256 epoch, address vault, 
 
 // Once all the users have claimed rewards for a token in a given epoch and vault, the total reward payout should be equal to the rewards of the 
 // vault and epoch 
-// PASSING
+// FAILING
 invariant TotalRewardPayoutEqualsRewardsForVaultEpoch (uint256 ep, address vlt, address token)
 (forall address user. getPointsWithdrawn(ep, vlt, user, token) > 0) => 
 getRewards(ep, vlt, token) == RewardsPayout_EpochVaultToken_Ghost(ep, vlt, token)
@@ -178,7 +182,7 @@ getRewards(ep, vlt, token) == RewardsPayout_EpochVaultToken_Ghost(ep, vlt, token
         require (ep < currentEpoch() && ep > 0);
     }
 }
-
+// FAILING
 rule TotalRewardPayoutEqualsRewardsForVaultEpochRule(uint256 ep, address vlt, address token, env e, method f){
     uint256 rewardsBefore = getRewards(ep, vlt, token);
     uint256 rewardsPayoutBefore = RewardsPayout_EpochVaultToken_Ghost(ep, vlt, token);
@@ -193,7 +197,7 @@ rule TotalRewardPayoutEqualsRewardsForVaultEpochRule(uint256 ep, address vlt, ad
     assert (rewardsAfter == rewardsPayoutAfter,"Total rewards payout, after all users have claimed, is less than the rewards for the vault and epoch");
 }
 
-
+// FAILING
 rule testingRewardsPayoutGhost(uint256 ep, address vlt, address user, address token, env e){
     uint256 rewardPayoutBefore = RewardsPayout_EpochVaultToken_Ghost(ep, vlt, token);
     uint256 pointsWithdrawnBefore = getPointsWithdrawn(ep, vlt, user,token);
@@ -223,14 +227,15 @@ rule testingRewardsPayoutGhost(uint256 ep, address vlt, address user, address to
 
 // invariant for checking that, once the users and the vault have been fully accrued, sum of all user shares in a given epoch
 //  and vault is exactly equal to the total supply
+// PASSING
 invariant SumOfUserSharesLETotalSupplyinEpochVault (uint256 ep, address vlt)
-getTotalSupply(ep, vlt) >= Sum_Shares_Ghost(ep, vlt)
+getTotalSupply(ep, vlt) == Sum_Shares_Ghost(ep, vlt)
 
 
 
 
 // invariant for checking that, once the users and the vault have been fully accrued, sum of all user points in a given epoch
-//  and vault is exactly equal to the total points
+//  and vault is less than or equal to the total points
 invariant SumOfUserPointsLETotalPointsinEpochVaultAfterFullAccrual (uint256 ep, address vlt)
 getTotalPoints(ep, vlt) >= Sum_UserPoints_Ghost(ep, vlt)
 {
@@ -263,24 +268,24 @@ invariant SumOfPointsWithdrawnLESumUserPoints (uint256 ep, address vault, addres
 PWSum_EpochVaultToken_Ghost(ep, vault, token) <= Sum_UserPoints_Ghost(ep, vault)
 
 rule SumOfPointsWithdrawnLESumUserPointsRule (uint256 epoch, address vault, address user, address token, method f, env e) filtered {f -> !f.isView }{
-uint256 SumOfPointsWithdrawnEpochVaultTokenBefore = PWSum_EpochVaultToken_Ghost(epoch, vault, token);
-uint256 SumUserPointsEpochVaultBefore = Sum_UserPoints_Ghost(epoch, vault);
-uint256 pointsWithdrawnUserBefore = getPointsWithdrawn(epoch, vault, user, token);
-uint256 pointUserBefore = getPoints(epoch, vault, user);
-uint256 userSharesBefore = getShares (epoch, vault, user);
-uint256 UserTimeLeftToAccrueBefore = getUserTimeLeftToAccrue(e, epoch, vault, user);
-// uint256 UserBalanceAtEpochBefore, bool updateRequiredbefore = getBalanceAtEpoch(epoch, vault, user);
-calldataarg args;
-require(SumOfPointsWithdrawnEpochVaultTokenBefore <= SumUserPointsEpochVaultBefore);
-f(e, args);
-uint256 SumOfPointsWithdrawnEpochVaultTokenAfter = PWSum_EpochVaultToken_Ghost(epoch, vault, token);
-uint256 SumUserPointsEpochVaultAfter = Sum_UserPoints_Ghost(epoch, vault);
-uint256 pointsWithdrawnUserAfter = getPointsWithdrawn(epoch, vault, user, token);
-uint256 pointUserAfter = getPoints(epoch, vault, user);
-uint256 userSharesAfter = getShares(epoch, vault, user);
-uint256 UserTimeLeftToAccrueAfter = getUserTimeLeftToAccrue(e, epoch, vault, user);
-// uint256 UserBalanceAtEpochBefore, bool updateRequiredbefore = getBalanceAtEpoch(epoch, vault, user);
-assert (SumOfPointsWithdrawnEpochVaultTokenAfter <= SumUserPointsEpochVaultAfter,"Sum of Points Withdrawn exceeds sum of user points");
+    uint256 SumOfPointsWithdrawnEpochVaultTokenBefore = PWSum_EpochVaultToken_Ghost(epoch, vault, token);
+    uint256 SumUserPointsEpochVaultBefore = Sum_UserPoints_Ghost(epoch, vault);
+    uint256 pointsWithdrawnUserBefore = getPointsWithdrawn(epoch, vault, user, token);
+    uint256 pointUserBefore = getPoints(epoch, vault, user);
+    uint256 userSharesBefore = getShares (epoch, vault, user);
+    uint256 UserTimeLeftToAccrueBefore = getUserTimeLeftToAccrue(e, epoch, vault, user);
+    // uint256 UserBalanceAtEpochBefore, bool updateRequiredbefore = getBalanceAtEpoch(epoch, vault, user);
+    calldataarg args;
+    require forall address u. getPoints(epoch, vault, u) >= getPointsWithdrawn(epoch, vault, u, token);
+    f(e, args);
+    uint256 SumOfPointsWithdrawnEpochVaultTokenAfter = PWSum_EpochVaultToken_Ghost(epoch, vault, token);
+    uint256 SumUserPointsEpochVaultAfter = Sum_UserPoints_Ghost(epoch, vault);
+    uint256 pointsWithdrawnUserAfter = getPointsWithdrawn(epoch, vault, user, token);
+    uint256 pointUserAfter = getPoints(epoch, vault, user);
+    uint256 userSharesAfter = getShares(epoch, vault, user);
+    uint256 UserTimeLeftToAccrueAfter = getUserTimeLeftToAccrue(e, epoch, vault, user);
+    // uint256 UserBalanceAtEpochBefore, bool updateRequiredbefore = getBalanceAtEpoch(epoch, vault, user);
+    assert (SumOfPointsWithdrawnEpochVaultTokenAfter <= SumUserPointsEpochVaultAfter,"Sum of Points Withdrawn exceeds sum of user points");
 }
 
 invariant SumOfPointsWithdrawnLETotalPoints (uint256 ep, address vault, address token)
