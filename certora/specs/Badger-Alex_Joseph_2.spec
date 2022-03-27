@@ -259,7 +259,7 @@ invariant CurrentandPastEpochTimestampsNonZero(uint256 epoch)
 currentEpoch() > 0 =>
 ((getEpochsEndTimestamp(currentEpoch()) > getEpochsStartTimestamp(currentEpoch()) && 
 getEpochsStartTimestamp(currentEpoch()) != 0 ) &&
-((epoch < currentEpoch() && epoch >0) => (getEpochsStartTimestamp(epoch) > getEpochsEndTimestamp(epoch) && getEpochsEndTimestamp(epoch) != 0)))
+((epoch < currentEpoch() && epoch >0) => (getEpochsStartTimestamp(epoch) < getEpochsEndTimestamp(epoch) && getEpochsEndTimestamp(epoch) != 0)))
 
 // PASSING
 invariant FutureEpochVaultZERO(uint256 epoch, address vault, address user, address token, env e)
