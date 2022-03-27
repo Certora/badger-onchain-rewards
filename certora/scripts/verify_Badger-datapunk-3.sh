@@ -4,8 +4,7 @@ certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC2
     --verify RewardsManagerHarness:certora/specs/Badger-datapunk-3.spec \
     --optimistic_loop \
     --loop_iter 2 \
-    --packages @oz=certora/openzeppelin/contracts \
-    --short_output
+    --packages @oz=certora/openzeppelin/contracts 
     #  \
     # --rule "$1" \
     # --msg "$1"
