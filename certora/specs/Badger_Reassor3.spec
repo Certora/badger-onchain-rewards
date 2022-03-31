@@ -3,7 +3,8 @@ import "erc20.spec"
 methods {
     // constants
     SECONDS_PER_EPOCH() returns(uint256) envfree
-    PRECISION() returns(uint256) envfree
+    MAX_BPS() returns(uint256) envfree
+    PRECISION() returns (uint256) envfree;
 
     // other variables
     currentEpoch() returns(uint256) envfree
@@ -46,44 +47,39 @@ methods {
     tokenBalanceOf(address, address) returns(uint256) envfree
 }
 
-// STATUS - verified
-// check correctness of startNextEpoch() method
-rule startNextEpochCheck(method f, env e){
-    uint256 epochId = to_uint256(currentEpoch() + 1);
+/*
+STATUS - VERIFIED
 
-    startNextEpoch(e);
-
-    uint256 epochStartAfter = getEpochsStartTimestamp(epochId);
-    uint256 epochEndAfter = getEpochsEndTimestamp(epochId);
-
-    assert epochStartAfter == e.block.timestamp, "wrong start";
-    assert epochEndAfter == e.block.timestamp + SECONDS_PER_EPOCH(), "wrong end";
+pointsWithdrawn[epochId][vault][user][token] <= points[epochId][vault][user]
+*/
+rule pointsWithdrawnCanBeOnlyLowerOrEqualThanPoints(method f, uint256 epochId, address vault, address user, address token)
+filtered {
+    f -> f.selector != claimBulkTokensOverMultipleEpochsOptimized(uint256,uint256,address,address[]).selector
 }
-
-
-// get the list of functions which can change user's balance (It's not a rule that we usually use in real verification, more as a code example)
-rule whoChangedMyBalance(address token, address user, method f) filtered {f -> !f.isView && f.selector != accrueVault(uint256, address).selector} {
-    uint256 before = tokenBalanceOf(token,user);
-
+{
     env e;
     calldataarg args;
-    f(e,args);
 
-    assert tokenBalanceOf(token,user) == before;
+    require getPointsWithdrawn(epochId, vault, user, token) <= getPoints(epochId, vault, user);
+    f(e, args);
+    assert getPointsWithdrawn(epochId, vault, user, token) <= getPoints(epochId, vault, user), "more pointsWithdrawn than points";
 }
 
+/*
+STATUS - VERIFIED
 
-// @note it's because `--loop_iter 2` allows two tokens be changed by `claimRewards`.
-// check if any function can change balances in different tokens (hint: there will be different results with --loop_iter 1 and 2. Try to undesrtand the reason)
-rule canAnyFunctionChangeMoreThanOneToken(address token1, address token2, address user, method f) {
-    require token1!=token2;
-
-    uint256 before1 = tokenBalanceOf(token1,user);
-    uint256 before2 = tokenBalanceOf(token2,user);
-    
-    env e;
-    calldataarg args;
-    f(e,args);
-
-    assert tokenBalanceOf(token1,user) == before1 || tokenBalanceOf(token2,user) == before2;
+totalSupply[epochId][vault] == sum(shares[epochId][vault][user])
+*/
+ghost getSharesSum(uint256, address) returns uint256 {
+    init_state axiom forall uint256 epochId. forall address vault. getSharesSum(epochId, vault) == 0;
 }
+hook Sstore shares[KEY uint256 epochId][KEY address vaultAddress][KEY address userAddress] uint256 value(uint256 old_value) STORAGE {
+    havoc getSharesSum assuming forall uint256 epoch. forall address vault.
+        (epoch == epochId && vault == vaultAddress) ? 
+            getSharesSum@new(epoch, vault) == getSharesSum@old(epoch, vault) + value - old_value :
+            getSharesSum@new(epoch, vault) == getSharesSum@old(epoch, vault);
+}
+
+invariant totalSupplyEqualToSumOfShares(uint256 epochId, address vault)
+    getTotalSupply(epochId, vault) == getSharesSum(epochId, vault)
+
