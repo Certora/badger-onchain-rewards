@@ -73,7 +73,9 @@ rule whoChangedMyBalance(address token, address user, method f) filtered {f -> !
 }
 
 
-// check if any function can change balances in different tokens (hint: there will be different results with --loop_iter 1 and 2. Try to undesrtand the reason), due to claimRewards which allows changing multiple tokens with a loop
+
+// @note it's because `--loop_iter 2` allows two tokens be changed by `claimRewards`.
+// check if any function can change balances in different tokens (hint: there will be different results with --loop_iter 1 and 2. Try to undesrtand the reason)
 rule canAnyFunctionChangeMoreThanOneToken(address token1, address token2, address user, method f) {
     require token1!=token2;
 
