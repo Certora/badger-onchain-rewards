@@ -265,27 +265,5 @@ rule shares_independent_users(uint256 epoch, address vault, address user1, addre
     uint256 sharesUser2After = getShares(epoch, vault, user2);
     
     assert sharesUser2After == sharesUser2Before, "claiming for one user affects others";
-} 
-
-///////////////////////// HIGH-LEVEL ///////////////////////////
-
-// Shares and points should be correlated.
-// STATUS - unfnished
-rule higher_shares_higher_points(uint256 epoch, address vault, address user, method f) filtered {f -> f.selector != accrueUser(uint256, address, address).selector && !f.isView} {
-    env e;
-    require(e.block.timestamp > 0);
-    uint256 points1 = getPoints(epoch, vault, user); // have some points
-    uint256 shares1 = getShares(epoch, vault, user); // and some shares
-    uint256 lastBalanceChangeTime1 = getLastUserAccrueTimestamp(epoch, vault, user);
-    
-    calldataarg args;
-    f(e, args); // do anything
-    uint256 lastBalanceChangeTime2 = getLastUserAccrueTimestamp(epoch, vault, user);
-    accrueUser(e, epoch, vault, user);
-
-    uint256 lastBalanceChangeTime3 = getLastUserAccrueTimestamp(epoch, vault, user);
-    uint256 points2  = getPoints(epoch, vault, user); 
-    uint256 shares2  = getShares(epoch, vault, user);
-    assert shares2 > shares1 => points2 > points1, "points didnt increase with shares";
 }
 

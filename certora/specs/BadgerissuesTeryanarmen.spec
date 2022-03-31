@@ -21,6 +21,7 @@ rule add_rewards_adds_rewards(uint256[] epochs, address[] vaults, address[] toke
 // addRewards has the same effect as calling addReward multiple times
 // STATUS - verified
 // @note Found issue with addRewards and addReward, addRewards switches order of tokens and vaults in addReward
+// the order of inputs in addRewards has vaults before tokens, and inside it calls addReward the same way but addReward has a different order of inputs, it has token before vault. This causes addRewards to switch the two inputs and not properly add up rewards.
 rule add_rewards_eq_add_reward(uint256[] epochs, address[] tokens, address[] vaults, uint256[] amounts) {
     env e;
     require e.msg.sender != currentContract;
