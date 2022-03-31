@@ -1,8 +1,9 @@
 solc-select use 0.8.10
 
 certoraRun certora/harnesses/RewardsManagerHarnessTeryanarmen.sol certora/helpers/DummyERC20A.sol certora/helpers/DummyERC20B.sol \
-    --verify RewardsManagerHarness:certora/specs/sanity.spec \
+    --verify RewardsManagerHarness:certora/specs/BadgerissuesTeryanarmen.spec \
     --solc solc \
     --optimistic_loop \
     --packages @oz=certora/openzeppelin/contracts \
-    --msg "$1"
+    --msg "$1" 
+    

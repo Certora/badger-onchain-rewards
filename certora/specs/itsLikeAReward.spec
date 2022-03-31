@@ -73,6 +73,7 @@ rule whoChangedMyBalance(address token, address user, method f) filtered {f -> !
 }
 
 
+
 // @note it's because `--loop_iter 2` allows two tokens be changed by `claimRewards`.
 // check if any function can change balances in different tokens (hint: there will be different results with --loop_iter 1 and 2. Try to undesrtand the reason)
 rule canAnyFunctionChangeMoreThanOneToken(address token1, address token2, address user, method f) {
@@ -87,3 +88,22 @@ rule canAnyFunctionChangeMoreThanOneToken(address token1, address token2, addres
 
     assert tokenBalanceOf(token1,user) == before1 || tokenBalanceOf(token2,user) == before2;
 }
+
+
+// total shares greater than sum of all shares 
+// STATUS - verfied
+ghost sum_all_shares(uint256, address) returns uint {
+    init_state axiom forall uint256 epoch. forall address vault. sum_all_shares(epoch, vault) == 0;
+}
+
+hook Sstore shares[KEY uint256 epoch][KEY address vault][KEY address user]
+    uint256 shares
+    (uint256 old_shares) STORAGE {
+        // sum_all_points can be any state as long as 
+        havoc sum_all_shares assuming forall uint256 e. forall address v. ((epoch == e && vault == v) => sum_all_shares@new(e, v) == sum_all_shares@old(e, v) - old_shares + shares) && ((epoch != e || vault != v) => sum_all_shares@new(e, v) == sum_all_shares@old(e, v));
+    }
+
+// Total shares should be greater than sum of all users' shares.
+// STATUS - valid
+invariant total_shares_gte_sum_all_shares(uint256 epoch, address vault)
+    getTotalSupply(epoch, vault) >= sum_all_shares(epoch, vault)
