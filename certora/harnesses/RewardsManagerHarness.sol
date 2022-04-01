@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.10;
 
-import "../../contracts/RewardsManagerFixed.sol";
+import "../../contracts/RewardsManager.sol";
 
 contract RewardsManagerHarness is
     RewardsManager /*Fixed*/
@@ -124,22 +124,11 @@ contract RewardsManagerHarness is
 
     // space to create your own destiny
 
-    function getPrecision() public returns (uint256) {
-        return PRECISION;
-    }
-
     function getShouldUpdateVault(uint256 epochId, address vault)
         public
         returns (bool shouldUpdate)
     {
         (, shouldUpdate) = getTotalSupplyAtEpoch(epochId, vault);
-    }
-
-    function getTotalSupplyAtEpochReturn(uint256 epochId, address vault)
-        public
-        returns (uint256 totalSup)
-    {
-        (totalSup, ) = getTotalSupplyAtEpoch(epochId, vault);
     }
 
     function getShouldUpdateUser(
