@@ -15,3 +15,5 @@ yarn.lock
 certora/openzeppelin/**/*.js*
 certora/openzeppelin/**/*.ts*
 certora/openzeppelin/**/LICENSE
+
+resource_errors.json

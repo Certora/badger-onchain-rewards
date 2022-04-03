@@ -1,8 +1,9 @@
-solc-select use 0.8.10
-
 certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC20A.sol certora/helpers/DummyERC20B.sol \
-    --verify RewardsManagerHarness:certora/specs/itsLikeAReward.spec \
-    --send_only \
-    --loop_iter 2 \
+    --verify RewardsManagerHarness:certora/specs/BadgerKuldeep_1.spec \
+    --solc ~/solc/0.8.10/solc-macos \
+    --optimistic_loop \
+    --cloud \
+    --loop_iter 1 \
     --packages @oz=certora/openzeppelin/contracts \
+    --rule "$1" \
     --msg "$1"
