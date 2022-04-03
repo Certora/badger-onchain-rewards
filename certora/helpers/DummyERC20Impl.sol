@@ -54,4 +54,9 @@ contract DummyERC20Impl {
         a[sender][msg.sender] = sub(a[sender][msg.sender], amount);
         return true;
     }
+
+    function getTokenAddress() public view returns (address) {
+        return address(this);
+    }
+
 }
