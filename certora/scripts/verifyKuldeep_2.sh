@@ -1,5 +1,5 @@
 certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC20A.sol certora/helpers/DummyERC20B.sol \
-    --verify RewardsManagerHarness:certora/specs/itsLikeAReward.spec \
+    --verify RewardsManagerHarness:certora/specs/BadgerKuldeep_2.spec \
     --solc ~/solc/0.8.10/solc-macos \
     --optimistic_loop \
     --cloud \

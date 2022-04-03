@@ -1,9 +1,11 @@
 certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC20A.sol certora/helpers/DummyERC20B.sol \
-    --verify RewardsManagerHarness:certora/specs/itsLikeAReward.spec \
-    --solc ~/solc/0.8.10/solc-macos \
+    --verify RewardsManagerHarness:certora/specs/BadgerThrottle2.spec \
+    --solc solc-0.8.10 \
     --optimistic_loop \
+    --loop_iter 2 \
     --cloud \
-    --loop_iter 1 \
+    --short_output \
     --packages @oz=certora/openzeppelin/contracts \
-    --rule "$1" \
+    --short_output \
+    # --rule claimBulkTokensOverMultipleEpochsUnitTest \
     --msg "$1"

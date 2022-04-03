@@ -1,9 +1,7 @@
 certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC20A.sol certora/helpers/DummyERC20B.sol \
-    --verify RewardsManagerHarness:certora/specs/itsLikeAReward.spec \
-    --solc ~/solc/0.8.10/solc-macos \
+    --verify RewardsManagerHarness:certora/specs/BadgerissuesThrottle.spec \
+    --solc solc-0.8.10 \
     --optimistic_loop \
-    --cloud \
-    --loop_iter 1 \
     --packages @oz=certora/openzeppelin/contracts \
-    --rule "$1" \
+    # --rule accrueUserShouldUpdateUserShares \
     --msg "$1"
