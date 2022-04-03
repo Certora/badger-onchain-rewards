@@ -3,7 +3,7 @@ pragma solidity 0.8.10;
 
 import "../../contracts/RewardsManager.sol";
 
-contract RewardsManagerHarness is RewardsManager {
+contract RewardsManagerHarnessTeryanarmen is RewardsManager {
     
     // public method calls
     function handleDeposit(address vault, address to, uint256 amount) public {
@@ -77,6 +77,35 @@ contract RewardsManagerHarness is RewardsManager {
     }
 
     // space to create your own destiny 
+    function getAddress() public view returns(address) {
+        return address(this);
+    }
 
+    function getTokenClaimAmount(uint256 epochId, address vault, address token, address user) public returns(uint256) {
+        accrueUser(epochId, vault, user);
+        accrueVault(epochId, vault);
+
+        // Now that they are accrue, just use the points to estimate reward and send
+        uint256 userPoints = points[epochId][vault][user];
+        uint256 vaultTotalPoints = totalPoints[epochId][vault];
+
+        uint256 pointsLeft = userPoints - pointsWithdrawn[epochId][vault][user][token];
+
+        // We got some stuff left // Use ratio to calculate what we got left
+        uint256 totalAdditionalReward = rewards[epochId][vault][token];
+
+        // We multiply just to avoid rounding
+        uint256 ratioForPointsLeft = PRECISION * pointsLeft / vaultTotalPoints;
+        uint256 tokensForUser = totalAdditionalReward * ratioForPointsLeft / PRECISION;
+        return tokensForUser;
+    }
+
+    /*
+    // rule testing bug functions 
+    // STATUS - successfully breaks total_shares_gte_sum_all_shares
+    function addUserSharesWithoutAddingTotal(uint256 epoch, address vault, address user, uint256 amount) public {
+        shares[epoch][vault][user] += amount;
+    }
+    */
 
 }

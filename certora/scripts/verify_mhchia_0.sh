@@ -6,4 +6,4 @@ certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC2
     --loop_iter 1 \
     --packages @oz=certora/openzeppelin/contracts \
     --send_only \
-    --msg "verify_mhchia_0 $1"
+    --msg "$(basename $BASH_SOURCE)"

@@ -1,11 +1,9 @@
-solc-select use 0.8.10
-
-certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC20A.sol certora/helpers/DummyERC20B.sol \
-    --verify RewardsManagerHarness:certora/specs/Badger_mehul_2.spec \
+certoraRun certora/harnesses/RewardsManagerHarnessMehul.sol certora/helpers/DummyERC20A.sol certora/helpers/DummyERC20B.sol \
+    --verify RewardsManagerHarnessMehul:certora/specs/Badger_mehul_2.spec \
     --send_only \
+    --solc solc8.10  \
     --optimistic_loop \
     --loop_iter 1 \
     --packages @oz=certora/openzeppelin/contracts \
-    --msg "$1" $2
-
-#     --loop_iter 2   --rule $1 \
+    --cloud \
+    --msg "$(basename $BASH_SOURCE)"

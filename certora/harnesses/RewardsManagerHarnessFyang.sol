@@ -3,7 +3,7 @@ pragma solidity 0.8.10;
 
 import "../../contracts/RewardsManager.sol";
 
-contract RewardsManagerHarness is RewardsManager {
+contract RewardsManagerHarnessFyang is RewardsManager {
     
     // public method calls
     function handleDeposit(address vault, address to, uint256 amount) public {
@@ -77,6 +77,11 @@ contract RewardsManagerHarness is RewardsManager {
     }
 
     // space to create your own destiny 
+    function contractTokenBalance(address token) public returns (uint256) {
+        return IERC20(token).balanceOf(address(this));
+    }
 
-
+    function contractAddress() public returns (address) {
+        return address(this);
+    }
 }

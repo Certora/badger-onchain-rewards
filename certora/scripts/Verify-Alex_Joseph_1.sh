@@ -3,4 +3,6 @@ certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC2
     --solc solc8.10 \
     --optimistic_loop \
     --cloud \
-    --packages @oz=certora/openzeppelin/contracts
+    --packages @oz=certora/openzeppelin/contracts \
+    --send_only \
+    --msg "$(basename $BASH_SOURCE)"

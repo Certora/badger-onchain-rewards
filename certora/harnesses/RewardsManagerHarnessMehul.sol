@@ -3,9 +3,11 @@ pragma solidity 0.8.10;
 
 import "../../contracts/RewardsManager.sol";
 
-contract RewardsManagerHarness is RewardsManager {
+contract RewardsManagerHarnessMehul is RewardsManager {
     
     // public method calls
+    // @note : These handle functions in the harness are bad design. 
+    // They increase the scope of functions and lead to false positives
     function handleDeposit(address vault, address to, uint256 amount) public {
         _handleDeposit(vault, to, amount);
     }
@@ -77,6 +79,20 @@ contract RewardsManagerHarness is RewardsManager {
     }
 
     // space to create your own destiny 
+
+    // Same calculation as claimRewards, but without claim, for testing
+    // Amount passed externally to make sure values are correct
+    function getEligibleRewardsForAmount(uint256 epochId, address vault, address token, address user, uint256 amount) public returns (uint256) {
+        uint256 userPoints = points[epochId][vault][user];
+        uint256 vaultTotalPoints = totalPoints[epochId][vault];
+
+        uint256 pointsLeft = userPoints - pointsWithdrawn[epochId][vault][user][token];
+
+        uint256 ratioForPointsLeft = PRECISION * pointsLeft / vaultTotalPoints;
+        uint256 tokensForUser = amount * ratioForPointsLeft / PRECISION;
+        return tokensForUser;
+
+    }
 
 
 }
