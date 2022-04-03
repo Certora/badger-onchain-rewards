@@ -80,15 +80,9 @@ contract RewardsManagerHarness is RewardsManager {
         return IERC20(token).balanceOf(user);
     }
 
-    function tokenAllowance(address token, address user, address spender) public view returns (uint256) {
-        return IERC20(token).allowance(user, spender);
-    }
-
-    function getRewardsManagerAddress() public view returns (address) {
-        return address(this);
-    }
-
     // space to create your own destiny
 
-
+    function contractAddress() public returns (address) {
+        return address(this);
+    }
 }
