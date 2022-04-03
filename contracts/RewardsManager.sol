@@ -21,7 +21,7 @@ import {ReentrancyGuard} from "@oz/security/ReentrancyGuard.sol";
 /// Total supply may be different
 /// However, we calculate your share by just multiplying the share * seconds in the vault
 /// If you had X tokens a epoch N, and you had X tokens at epoch N+1
-/// You'll get X * SECONDS_PER_EPOCH points in epoch N+1 if you redeem at N+2
+/// You'll get N + 1 * SECONDS_PER_EPOCH points in epoch N+1 if you redeem at N+2
 /// If you have X tokens at epoch N and withdraw, you'll get TIME_IN_EPOCH * X points
 
 /// MAIN ISSUE
@@ -73,6 +73,8 @@ contract RewardsManager is ReentrancyGuard {
 
     mapping(uint256 => mapping(address => uint256)) public lastAccruedTimestamp; // Last timestamp in which vault was accrued - lastAccruedTimestamp[epochId][vaultAddress]
     mapping(uint256 => mapping(address => mapping(address => uint256))) public lastUserAccrueTimestamp; // Last timestamp in we accrued user to calculate rewards in epochs without interaction lastUserAccrueTimestampepochId][vaultAddress][userAddress]
+    mapping(address => uint256) public lastVaultDeposit; // Last Epoch in which any user deposited in the vault, used to know if vault needs to be brought to new epoch
+    // Or just have the check and skip the op if need be
 
     mapping(uint256 => mapping(address => mapping(address => uint256))) public shares; // Calculate points per each epoch shares[epochId][vaultAddress][userAddress]    
     mapping(uint256 => mapping(address => uint256)) public totalSupply; // Sum of all deposits for a vault at an epoch totalSupply[epochId][vaultAddress]
@@ -397,13 +399,13 @@ contract RewardsManager is ReentrancyGuard {
     /// === Bulk Claims END === ///
 
     /// @notice Utility function to specify a group of emissions for the specified epochs, vaults with tokens
-    function addRewards(uint256[] calldata epochIds, address[] calldata vaults, address[] calldata tokens, uint256[] calldata amounts) external {
+    function addRewards(uint256[] calldata epochIds, address[] calldata tokens, address[] calldata vaults, uint256[] calldata amounts) external {
         require(vaults.length == epochIds.length); // dev: length mismatch
         require(vaults.length == amounts.length); // dev: length mismatch
         require(vaults.length == tokens.length); // dev: length mismatch
 
         for(uint256 i = 0; i < vaults.length; ++i){
-            addReward(epochIds[i], vaults[i], tokens[i], amounts[i]);   
+            addReward(epochIds[i], tokens[i], vaults[i], amounts[i]);   
         }
     }
 
@@ -422,6 +424,9 @@ contract RewardsManager is ReentrancyGuard {
         rewards[epochId][vault][token] += endBalance - startBalance;
     }
 
+
+    // Total Points per epoch = Total Deposits * Total Points per Second * Seconds in Epoch
+
     /// **== Notify System ==** ///
 
     /// @dev This is used by external contracts to notify a change in balances
@@ -429,7 +434,6 @@ contract RewardsManager is ReentrancyGuard {
     /// @notice After that, just change the balances
     /// @notice This contract is effectively tracking the balances of all users, this is pretty expensive
     function notifyTransfer(address from, address to, uint256 amount) external {
-        require(from != to); // dev: can't transfer to yourself
         // NOTE: Anybody can call this because it's indexed by msg.sender
         address vault = msg.sender; // Only the vault can change these
 
