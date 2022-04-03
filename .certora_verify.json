@@ -1,0 +1,16 @@
+[
+    {
+        "importFilesToOrigRelpaths": {
+            ".certora_config/0_erc20.spec": "certora/specs/erc20.spec"
+        },
+        "primary_contract": "RewardsManagerHarness",
+        "specfile": ".certora_config/0_itsLikeAReward.spec",
+        "specfileOrigRelpath": "certora/specs/itsLikeAReward.spec",
+        "specfilesToImportDecls": {
+            ".certora_config/0_itsLikeAReward.spec": [
+                "erc20.spec"
+            ]
+        },
+        "type": "spec"
+    }
+]

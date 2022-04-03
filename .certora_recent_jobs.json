@@ -1,0 +1,14 @@
+{
+    "workingDir": "/Users/arielgrosh/PycharmProjects/EVMVerifier/benchmark/Badger",
+    "recentJobs": [
+        {
+            "anonymous_key": "261ada4e1135463690e528965b0d873be5afaf8c",
+            "domain": "https://vaas-stg.certora.com",
+            "job_id": "8d5247cfc825abdda45a",
+            "notify_msg": "verifyRM",
+            "output_url": "https://vaas-stg.certora.com/output/99814/8d5247cfc825abdda45a?anonymousKey=261ada4e1135463690e528965b0d873be5afaf8c",
+            "time": 1648993977,
+            "user_id": "99814"
+        }
+    ]
+}

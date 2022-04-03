@@ -6,7 +6,7 @@ reports/
 .env
 
 # Certora
-.certora*
+.certora_config
 .last_confs
 certora_*
 .env
