@@ -4,5 +4,5 @@ certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC2
     --verify RewardsManagerHarness:certora/specs/itsLikeAReward.spec \
     --send_only \
     --loop_iter 2 \
-    --packages @oz=certora/openzeppelin/contracts \
+--staging    --packages @oz=certora/openzeppelin/contracts \
     --msg "$1"

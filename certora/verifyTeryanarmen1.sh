@@ -4,5 +4,5 @@ certoraRun certora/harnesses/RewardsManagerHarnessTeryanarmen.sol certora/helper
     --optimistic_loop \
     --packages @oz=certora/openzeppelin/contracts \
     --send_only \
-    --cloud \
+--staging    --cloud \
     --msg "$(basename $BASH_SOURCE)"

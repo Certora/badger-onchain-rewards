@@ -4,5 +4,5 @@ certoraRun certora/harnesses/RewardsManagerHarnessTeryanarmen.sol certora/helper
     --verify RewardsManagerHarness:certora/specs/check_effects.spec \
     --solc solc \
     --optimistic_loop \
-    --packages @oz=certora/openzeppelin/contracts \
+--staging    --packages @oz=certora/openzeppelin/contracts \
     --msg "$1"
