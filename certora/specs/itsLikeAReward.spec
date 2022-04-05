@@ -87,3 +87,6 @@ rule canAnyFunctionChangeMoreThanOneToken(address token1, address token2, addres
 
     assert tokenBalanceOf(token1,user) == before1 || tokenBalanceOf(token2,user) == before2;
 }
+
+invariant feuture_epoch_uninitialized(uint256 epoch)
+    epoch > currentEpoch() => (getEpochsStartTimestamp(epoch) == 0 && getEpochsEndTimestamp(epoch) == 0)

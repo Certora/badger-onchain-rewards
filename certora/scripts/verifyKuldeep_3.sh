@@ -1,11 +1,9 @@
 certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC20A.sol certora/helpers/DummyERC20B.sol \
-    --verify RewardsManagerHarness:certora/specs/itsLikeAReward.spec \
+    --verify RewardsManagerHarness:certora/specs/BadgerKuldeep_3.spec \
     --packages @oz=certora/openzeppelin/contracts \
-    --solc solc8.10 \
-    --cloud \
+    --solc solc8.10  \
     --send_only \
+    --cloud \
     --optimistic_loop \
     --loop_iter 1 \
-    --rule feuture_epoch_uninitialized \
-    --rule_sanity \
-    --msg "$1"
+    --msg "$(basename $BASH_SOURCE)"
