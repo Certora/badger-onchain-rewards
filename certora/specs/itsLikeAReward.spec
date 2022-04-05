@@ -88,5 +88,20 @@ rule canAnyFunctionChangeMoreThanOneToken(address token1, address token2, addres
     assert tokenBalanceOf(token1,user) == before1 || tokenBalanceOf(token2,user) == before2;
 }
 
-invariant feuture_epoch_uninitialized(uint256 epoch)
-    epoch > currentEpoch() => (getEpochsStartTimestamp(epoch) == 0 && getEpochsEndTimestamp(epoch) == 0)
+rule feuture_epoch_uninitialized(uint256 epochId, uint256 epochId2){
+    env e; calldataarg args; method f;
+    require epochId == currentEpoch();
+    require epochId2 > epochId;
+    require e.block.timestamp < getEpochsEndTimestamp(epochId);
+    require getEpochsStartTimestamp(epochId2) == 0 && getEpochsEndTimestamp(epochId2) == 0;
+    f(e, args);
+    assert getEpochsStartTimestamp(epochId2) == 0;
+}
+//     method f; env e; calldataarg args;
+//     require epochId == currentEpoch();
+//     require epochId2 == epochId + 1;
+//     require (getEpochsStartTimestamp(epochId2) == 0 && getEpochEndTimestamp(epochId2) == 0);
+//     f(e, args);
+
+
+// }

@@ -203,7 +203,7 @@ contract RewardsManager is ReentrancyGuard {
         // To avoid re-entrancy we always change state before sending
         // Also this function needs to have re-entancy checks as well
         for(uint256 i = 0; i < epochLength; ++i) {
-            claimReward(epochsToClaim[i], vaults[i], tokens[i], users[i]);
+            claimReward(epochsToClaim[i], tokens[i], vaults[i], users[i]);
         }
     }
     

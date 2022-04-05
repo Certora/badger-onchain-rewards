@@ -5,21 +5,21 @@
         "build_only": false,
         "bytecode_jsons": null,
         "bytecode_spec": null,
-        "cache": "certora/harnesses/RewardsManagerHarness.sol-certora/helpers/DummyERC20A.sol-certora/helpers/DummyERC20B.sol-optimisticTrue-iter1",
+        "cache": null,
         "check_args": false,
-        "cloud": "production",
+        "cloud": null,
         "coinbaseMode": false,
         "contracts": [
             "DummyERC20A",
-            "DummyERC20B",
-            "RewardsManagerHarness"
+            "RewardsManagerHarness",
+            "DummyERC20B"
         ],
         "debug": null,
         "debug_topics": false,
         "delay_fetch_output_seconds": null,
         "disableLocalTypeChecking": false,
         "disable_auto_cache_key_gen": false,
-        "env": "production",
+        "env": "master",
         "expected_file": "expected.json",
         "file_paths": [
             "certora/helpers/DummyERC20B.sol",
@@ -50,7 +50,7 @@
         "max_poll_minutes": null,
         "method": null,
         "mode": "Mode.VERIFY",
-        "msg": "feuture_epoch_uninitialized sanity",
+        "msg": "verifyRM",
         "multi_assert_check": false,
         "no_compare": false,
         "optimistic_loop": true,
@@ -62,14 +62,12 @@
         "path": "/Users/pitanjenny/Work/badger-onchain-rewards/contracts",
         "process": "emv",
         "queue_wait_minutes": null,
-        "rule": "feuture_epoch_uninitialized",
-        "rule_sanity": true,
+        "rule": null,
+        "rule_sanity": false,
         "send_only": true,
         "settings": [
             "-assumeUnwindCond",
-            "-b=1",
-            "-rule=feuture_epoch_uninitialized",
-            "-ruleSanityChecks"
+            "-b=1"
         ],
         "short_output": true,
         "smt_timeout": null,
@@ -79,7 +77,7 @@
         "spec_files": [
             "certora/specs/itsLikeAReward.spec"
         ],
-        "staging": null,
+        "staging": "master",
         "struct_link": null,
         "tool_output": null,
         "typecheck_only": false,
@@ -93,24 +91,21 @@
     },
     "branch": "main",
     "conf": {
-        "cache": "certora/harnesses/RewardsManagerHarness.sol-certora/helpers/DummyERC20A.sol-certora/helpers/DummyERC20B.sol-optimisticTrue-iter1",
-        "cloud": "production",
         "files": [
             "certora/harnesses/RewardsManagerHarness.sol",
             "certora/helpers/DummyERC20A.sol",
             "certora/helpers/DummyERC20B.sol"
         ],
         "loop_iter": "1",
-        "msg": "feuture_epoch_uninitialized sanity",
+        "msg": "verifyRM",
         "optimistic_loop": true,
         "packages": [
             "@oz=certora/openzeppelin/contracts"
         ],
         "process": "emv",
-        "rule": "feuture_epoch_uninitialized",
-        "rule_sanity": true,
         "send_only": true,
         "solc": "solc8.10",
+        "staging": "master",
         "verify": [
             "RewardsManagerHarness:certora/specs/itsLikeAReward.spec"
         ]
@@ -119,7 +114,7 @@
     "dirty": true,
     "origin": "git@github.com:Certora/badger-onchain-rewards.git",
     "raw_args": [
-        "/Users/pitanjenny/Library/Python/3.8/bin/certoraRun",
+        "/opt/homebrew/bin/certoraRun",
         "certora/harnesses/RewardsManagerHarness.sol",
         "certora/helpers/DummyERC20A.sol",
         "certora/helpers/DummyERC20B.sol",
@@ -129,17 +124,14 @@
         "@oz=certora/openzeppelin/contracts",
         "--solc",
         "solc8.10",
-        "--cloud",
+        "--staging",
         "--send_only",
         "--optimistic_loop",
         "--loop_iter",
         "1",
-        "--rule",
-        "feuture_epoch_uninitialized",
-        "--rule_sanity",
         "--msg",
-        "feuture_epoch_uninitialized sanity"
+        "verifyRM"
     ],
-    "revision": "10fb8bb04e55131e3a6027cd654db853b7e88d2a",
-    "timestamp": "1649082409.025925"
+    "revision": "ac87d542fac6b853374ce4d60a94ac2912fe61d6",
+    "timestamp": "1649145994.023904"
 }

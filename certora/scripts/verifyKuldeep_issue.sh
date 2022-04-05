@@ -6,5 +6,4 @@ certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC2
     --cloud \
     --optimistic_loop \
     --loop_iter 1 \
-    --rule user_able_to_accrue_points_transferring_to_himself \
     --msg "user_able_to_accrue_points_transferring_to_himself"
