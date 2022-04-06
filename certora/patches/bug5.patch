@@ -1,0 +1,13 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..8d1f406 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -418,7 +418,7 @@ contract RewardsManager is ReentrancyGuard {
+ 
+         // Check change in balance to support `feeOnTransfer` tokens as well
+         uint256 startBalance = IERC20(token).balanceOf(address(this));  
+-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
++        IERC20(token).safeTransferFrom(address(this), msg.sender, amount);
+         uint256 endBalance = IERC20(token).balanceOf(address(this));
+ 
+         rewards[epochId][vault][token] += endBalance - startBalance;

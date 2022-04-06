@@ -1,0 +1,28 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..511bf8b 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -366,6 +366,11 @@ contract RewardsManager is ReentrancyGuard {
+ 
+             unchecked { ++epochId; }
+         }
++        // Go ahead and transfer
++        for(uint256 i = 0; i < tokensLength; ){
++            IERC20(tokens[i]).safeTransfer(user, amounts[i]);
++            unchecked { ++i; }
++        }
+ 
+         // We've done the math, delete to trigger refunds
+         for(uint epochId = epochStart; epochId < epochEnd; ) {
+@@ -389,11 +394,6 @@ contract RewardsManager is ReentrancyGuard {
+         // For last epoch, we don't delete the shares, but we delete the points
+         delete points[epochEnd][vault][user];
+ 
+-        // Go ahead and transfer
+-        for(uint256 i = 0; i < tokensLength; ){
+-            IERC20(tokens[i]).safeTransfer(user, amounts[i]);
+-            unchecked { ++i; }
+-        }
+     }
+ 
+     /// === Bulk Claims END === ///

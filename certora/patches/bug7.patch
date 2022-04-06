@@ -1,0 +1,13 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..dd1b9f4 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -89,7 +89,7 @@ contract RewardsManager is ReentrancyGuard {
+     /// @dev Sets the new epoch
+     /// @notice Accruing is not necessary, it's just a convenience for end users
+     function startNextEpoch() external {
+-        require(block.timestamp > epochs[currentEpoch].endTimestamp); // dev: !ended
++        // require(block.timestamp > epochs[currentEpoch].endTimestamp); // dev: !ended
+         uint256 newEpochId = ++currentEpoch;
+ 
+         epochs[newEpochId] = Epoch(

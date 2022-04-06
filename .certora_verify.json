@@ -3,11 +3,11 @@
         "importFilesToOrigRelpaths": {
             ".certora_config/0_erc20.spec": "certora/specs/erc20.spec"
         },
-        "primary_contract": "RewardsManagerHarness",
-        "specfile": ".certora_config/0_itsLikeAReward.spec",
-        "specfileOrigRelpath": "certora/specs/itsLikeAReward.spec",
+        "primary_contract": "RewardsManagerHarnessThrottle",
+        "specfile": ".certora_config/0_BadgerThrottle1.spec",
+        "specfileOrigRelpath": "certora/specs/BadgerThrottle1.spec",
         "specfilesToImportDecls": {
-            ".certora_config/0_itsLikeAReward.spec": [
+            ".certora_config/0_BadgerThrottle1.spec": [
                 "erc20.spec"
             ]
         },

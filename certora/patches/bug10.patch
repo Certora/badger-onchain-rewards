@@ -1,0 +1,22 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..eb4e587 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -283,7 +283,7 @@ contract RewardsManager is ReentrancyGuard {
+                 
+                 // To be able to use the same ratio for all tokens, we need the pointsWithdrawn to all be 0
+                 // To allow for this I could loop and check they are all zero, which would allow for further optimization
+-                require(pointsWithdrawn[epochId][vault][user][tokens[i]] == 0); // dev: You already accrued during the epoch, cannot optimize
++                // require(pointsWithdrawn[epochId][vault][user][tokens[i]] == 0); // dev: You already accrued during the epoch, cannot optimize
+ 
+                 // Use ratio to calculate tokens to send
+                 uint256 totalAdditionalReward = rewards[epochId][vault][tokens[i]];
+@@ -354,7 +354,7 @@ contract RewardsManager is ReentrancyGuard {
+ 
+                 // To be able to use the same ratio for all tokens, we need the pointsWithdrawn to all be 0
+                 // To allow for this I could loop and check they are all zero, which would allow for further optimization
+-                require(pointsWithdrawn[epochId][vault][user][tokens[i]] == 0); // dev: You already accrued during the epoch, cannot optimize
++                // require(pointsWithdrawn[epochId][vault][user][tokens[i]] == 0); // dev: You already accrued during the epoch, cannot optimize
+ 
+                 // Use ratio to calculate tokens to send
+                 uint256 totalAdditionalReward = rewards[epochId][vault][tokens[i]];

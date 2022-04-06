@@ -1,0 +1,17 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..d359876 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -548,9 +548,9 @@ contract RewardsManager is ReentrancyGuard {
+ 
+         // If timestamp is 0, we never accrued
+         // return _min(end, now) - start;
+-        if(lastBalanceChangeTime == 0) {
+-            return maxTime - epochData.startTimestamp;
+-        }
++        // if(lastBalanceChangeTime == 0) {
++        //     return maxTime - epochData.startTimestamp;
++        // }
+ 
+ 
+         // If this underflow the accounting on the contract is broken, so it's prob best for it to underflow

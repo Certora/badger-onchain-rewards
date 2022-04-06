@@ -1,0 +1,13 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..c446a97 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -370,7 +370,7 @@ contract RewardsManager is ReentrancyGuard {
+         // We've done the math, delete to trigger refunds
+         for(uint epochId = epochStart; epochId < epochEnd; ) {
+             // epochId < epochEnd because we need to preserve the last one for future accruals and balance tracking
+-            delete shares[epochId][vault][user]; // Delete shares 
++            // delete shares[epochId][vault][user]; // Delete shares 
+             delete points[epochId][vault][user]; // Delete their points
+ 
+             unchecked { ++epochId; }

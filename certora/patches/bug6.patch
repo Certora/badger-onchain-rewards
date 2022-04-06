@@ -1,0 +1,22 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..0d91d9a 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -255,7 +255,7 @@ contract RewardsManager is ReentrancyGuard {
+         require(epochStart <= epochEnd); // dev: epoch math wrong
+         uint256 tokensLength = tokens.length;
+         require(epochEnd < currentEpoch); // dev: Can't claim if not expired
+-        _requireNoDuplicates(tokens);
++        // _requireNoDuplicates(tokens);
+ 
+         uint256[] memory amounts = new uint256[](tokens.length); // We'll map out amounts to tokens for the bulk transfers
+         for(uint epochId = epochStart; epochId <= epochEnd; ++epochId) {
+@@ -312,7 +312,7 @@ contract RewardsManager is ReentrancyGuard {
+         address user = msg.sender; // Pay the extra 3 gas to make code reusable, not sorry
+         // NOTE: We don't cache currentEpoch as we never use it again
+         require(epochEnd < currentEpoch); // dev: epoch math wrong 
+-        _requireNoDuplicates(tokens);
++        // _requireNoDuplicates(tokens);
+ 
+         // Claim the tokens mentioned
+         // Over the epochs mentioned

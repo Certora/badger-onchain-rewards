@@ -1,0 +1,17 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..dcc1aa6 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -542,9 +542,9 @@ contract RewardsManager is ReentrancyGuard {
+ 
+         // Becase we could be in a time where a new epoch hasn't started, we need this check
+         uint256 maxTime = block.timestamp;
+-        if(maxTime > epochData.endTimestamp) {
+-            maxTime = epochData.endTimestamp;
+-        }
++        // if(maxTime > epochData.endTimestamp) {
++        //     maxTime = epochData.endTimestamp;
++        // }
+ 
+         // If timestamp is 0, we never accrued
+         // return _min(end, now) - start;

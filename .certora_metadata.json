@@ -7,32 +7,32 @@
         "bytecode_spec": null,
         "cache": null,
         "check_args": false,
-        "cloud": null,
+        "cloud": "production",
         "coinbaseMode": false,
         "contracts": [
+            "DummyERC20B",
             "DummyERC20A",
-            "RewardsManagerHarness",
-            "DummyERC20B"
+            "RewardsManagerHarnessThrottle"
         ],
         "debug": null,
         "debug_topics": false,
         "delay_fetch_output_seconds": null,
         "disableLocalTypeChecking": false,
         "disable_auto_cache_key_gen": false,
-        "env": "master",
+        "env": "production",
         "expected_file": "expected.json",
         "file_paths": [
+            "certora/harnesses/RewardsManagerHarnessThrottle.sol",
             "certora/helpers/DummyERC20B.sol",
-            "certora/harnesses/RewardsManagerHarness.sol",
             "certora/helpers/DummyERC20A.sol"
         ],
         "file_to_contract": {
-            "certora/harnesses/RewardsManagerHarness.sol": "RewardsManagerHarness",
+            "certora/harnesses/RewardsManagerHarnessThrottle.sol": "RewardsManagerHarnessThrottle",
             "certora/helpers/DummyERC20A.sol": "DummyERC20A",
             "certora/helpers/DummyERC20B.sol": "DummyERC20B"
         },
         "files": [
-            "certora/harnesses/RewardsManagerHarness.sol",
+            "certora/harnesses/RewardsManagerHarnessThrottle.sol",
             "certora/helpers/DummyERC20A.sol",
             "certora/helpers/DummyERC20B.sol"
         ],
@@ -44,13 +44,13 @@
         "local": false,
         "log_branch": null,
         "log_query_frequency_seconds": null,
-        "loop_iter": "1",
+        "loop_iter": null,
         "max_attempts_to_fetch_output": null,
         "max_graph_depth": null,
         "max_poll_minutes": null,
         "method": null,
         "mode": "Mode.VERIFY",
-        "msg": "verifyRM",
+        "msg": "verifyThrottle1.sh",
         "multi_assert_check": false,
         "no_compare": false,
         "optimistic_loop": true,
@@ -67,7 +67,7 @@
         "send_only": true,
         "settings": [
             "-assumeUnwindCond",
-            "-b=1"
+            "-ciMode=true"
         ],
         "short_output": true,
         "smt_timeout": null,
@@ -75,39 +75,39 @@
         "solc_args": null,
         "solc_map": null,
         "spec_files": [
-            "certora/specs/itsLikeAReward.spec"
+            "certora/specs/BadgerThrottle1.spec"
         ],
-        "staging": "master",
+        "staging": null,
         "struct_link": null,
         "tool_output": null,
         "typecheck_only": false,
         "user_defined_cache": false,
         "verified_contract_files": [
-            "certora/harnesses/RewardsManagerHarness.sol"
+            "certora/harnesses/RewardsManagerHarnessThrottle.sol"
         ],
         "verify": [
-            "RewardsManagerHarness:certora/specs/itsLikeAReward.spec"
+            "RewardsManagerHarnessThrottle:certora/specs/BadgerThrottle1.spec"
         ]
     },
     "branch": "main",
     "conf": {
+        "cloud": "production",
         "files": [
-            "certora/harnesses/RewardsManagerHarness.sol",
+            "certora/harnesses/RewardsManagerHarnessThrottle.sol",
             "certora/helpers/DummyERC20A.sol",
             "certora/helpers/DummyERC20B.sol"
         ],
-        "loop_iter": "1",
-        "msg": "verifyRM",
+        "msg": "verifyThrottle1.sh",
         "optimistic_loop": true,
         "packages": [
             "@oz=certora/openzeppelin/contracts"
         ],
         "process": "emv",
         "send_only": true,
+        "short_output": true,
         "solc": "solc8.10",
-        "staging": "master",
         "verify": [
-            "RewardsManagerHarness:certora/specs/itsLikeAReward.spec"
+            "RewardsManagerHarnessThrottle:certora/specs/BadgerThrottle1.spec"
         ]
     },
     "cwd_relative": ".",
@@ -115,23 +115,22 @@
     "origin": "git@github.com:Certora/badger-onchain-rewards.git",
     "raw_args": [
         "/opt/homebrew/bin/certoraRun",
-        "certora/harnesses/RewardsManagerHarness.sol",
+        "certora/harnesses/RewardsManagerHarnessThrottle.sol",
         "certora/helpers/DummyERC20A.sol",
         "certora/helpers/DummyERC20B.sol",
         "--verify",
-        "RewardsManagerHarness:certora/specs/itsLikeAReward.spec",
+        "RewardsManagerHarnessThrottle:certora/specs/BadgerThrottle1.spec",
         "--packages",
         "@oz=certora/openzeppelin/contracts",
         "--solc",
         "solc8.10",
-        "--staging",
         "--send_only",
+        "--short_output",
+        "--cloud",
         "--optimistic_loop",
-        "--loop_iter",
-        "1",
         "--msg",
-        "verifyRM"
+        "verifyThrottle1.sh"
     ],
-    "revision": "ac87d542fac6b853374ce4d60a94ac2912fe61d6",
-    "timestamp": "1649145994.023904"
+    "revision": "575bc97045a43b05e45f45113887fd3f64e4cea0",
+    "timestamp": "1649239463.084606"
 }

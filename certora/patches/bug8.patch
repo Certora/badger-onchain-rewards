@@ -1,0 +1,31 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..4732f19 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -211,7 +211,7 @@ contract RewardsManager is ReentrancyGuard {
+     /// @notice Anyone can claim on behalf of others
+     /// @notice Gas savings is fine as public / external matters only when using mem vs calldata for arrays
+     function claimReward(uint256 epochId, address vault, address token, address user) public {
+-        require(epochId < currentEpoch); // dev: !can only claim ended epochs
++        require(epochId <= currentEpoch); // dev: !can only claim ended epochs
+ 
+         accrueUser(epochId, vault, user);
+         accrueVault(epochId, vault);
+@@ -254,7 +254,7 @@ contract RewardsManager is ReentrancyGuard {
+         //  you may as well use the optimized version to save more gas
+         require(epochStart <= epochEnd); // dev: epoch math wrong
+         uint256 tokensLength = tokens.length;
+-        require(epochEnd < currentEpoch); // dev: Can't claim if not expired
++        require(epochEnd <= currentEpoch); // dev: Can't claim if not expired
+         _requireNoDuplicates(tokens);
+ 
+         uint256[] memory amounts = new uint256[](tokens.length); // We'll map out amounts to tokens for the bulk transfers
+@@ -311,7 +311,7 @@ contract RewardsManager is ReentrancyGuard {
+         uint256 tokensLength = tokens.length;
+         address user = msg.sender; // Pay the extra 3 gas to make code reusable, not sorry
+         // NOTE: We don't cache currentEpoch as we never use it again
+-        require(epochEnd < currentEpoch); // dev: epoch math wrong 
++        require(epochEnd <= currentEpoch); // dev: epoch math wrong 
+         _requireNoDuplicates(tokens);
+ 
+         // Claim the tokens mentioned

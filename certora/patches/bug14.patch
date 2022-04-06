@@ -1,0 +1,22 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..26c30d4 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -120,7 +120,7 @@ contract RewardsManager is ReentrancyGuard {
+             return;
+         }
+ 
+-        totalPoints[epochId][vault] += timeLeftToAccrue * supply;
++        totalPoints[epochId][vault] = timeLeftToAccrue * supply;
+         lastAccruedTimestamp[epochId][vault] = block.timestamp; // Any time after end is irrelevant
+         // Setting to the actual time when `accrueVault` was called may help with debugging though
+     }
+@@ -523,7 +523,7 @@ contract RewardsManager is ReentrancyGuard {
+         uint256 newPoints = currentBalance * timeInEpochSinceLastAccrue;
+         
+         // Track user rewards
+-        points[epochId][vault][user] += newPoints;
++        points[epochId][vault][user] = newPoints;
+ 
+         // Set last time for updating the user
+         lastUserAccrueTimestamp[epochId][vault][user] = block.timestamp;

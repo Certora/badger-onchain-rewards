@@ -1,0 +1,13 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..180a186 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -203,7 +203,7 @@ contract RewardsManager is ReentrancyGuard {
+         // To avoid re-entrancy we always change state before sending
+         // Also this function needs to have re-entancy checks as well
+         for(uint256 i = 0; i < epochLength; ++i) {
+-            claimReward(epochsToClaim[i], vaults[i], tokens[i], users[i]);
++            claimReward(epochsToClaim[i], tokens[i], vaults[i], users[i]);
+         }
+     }
+     
