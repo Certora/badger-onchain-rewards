@@ -1,0 +1,15 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..3f07094 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -448,8 +448,8 @@ contract RewardsManager is ReentrancyGuard {
+ 
+     /// @dev handles a deposit for vault, to address of amount
+     function _handleDeposit(address vault, address to, uint256 amount) internal {
+-        accrueUser(currentEpoch, vault, to);
+-        accrueVault(currentEpoch, vault); // We have to accrue vault as totalSupply is gonna change
++        // accrueUser(currentEpoch, vault, to);
++        // accrueVault(currentEpoch, vault); // We have to accrue vault as totalSupply is gonna change
+ 
+         // Add deposit data for user
+         shares[currentEpoch][vault][to] += amount;

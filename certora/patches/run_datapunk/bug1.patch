@@ -1,0 +1,22 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..dc0e18a 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -102,7 +102,7 @@ contract RewardsManager is ReentrancyGuard {
+     /// @notice You need to accrue a vault before you can claim it's rewards
+     /// @notice You can accrue
+     function accrueVault(uint256 epochId, address vault) public {
+-        require(epochId <= currentEpoch); // dev: !can only accrue up to current epoch
++        // require(epochId <= currentEpoch); // dev: !can only accrue up to current epoch
+ 
+         (uint256 supply, bool shouldUpdate) = getTotalSupplyAtEpoch(epochId, vault);
+ 
+@@ -494,7 +494,7 @@ contract RewardsManager is ReentrancyGuard {
+     /// @notice Figure out their points (their current balance) (before we update)
+     /// @notice Just multiply the points * the time, those are the points they've earned
+     function accrueUser(uint256 epochId, address vault, address user) public {
+-        require(epochId <= currentEpoch); // dev: !can only accrue up to current epoch
++        // require(epochId <= currentEpoch); // dev: !can only accrue up to current epoch
+ 
+         (uint256 currentBalance, bool shouldUpdate) = getBalanceAtEpoch(epochId, vault, user);
+ 

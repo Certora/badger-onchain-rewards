@@ -1,0 +1,13 @@
+diff --git a/contracts/RewardsManager.sol b/contracts/RewardsManager.sol
+index 7d413ee..501005f 100644
+--- a/contracts/RewardsManager.sol
++++ b/contracts/RewardsManager.sol
+@@ -46,7 +46,7 @@ import {ReentrancyGuard} from "@oz/security/ReentrancyGuard.sol";
+ /// totalPoints = timeSinceLastVaultAccrue * totalSupply
+ 
+ /// CONCLUSION
+-/// Given the points, knowing the rewards amounts to distribute, you know how to split them at the end of each epoch
++/// Given the points, knowing the rewards amounts to distribute, you know how to split them at the end of each epochs
+ 
+ contract RewardsManager is ReentrancyGuard {
+     using SafeERC20 for IERC20;

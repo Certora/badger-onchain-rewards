@@ -1,0 +1,9 @@
+certoraRun certora/harnesses/RewardsManagerHarness.sol certora/helpers/DummyERC20A.sol certora/helpers/DummyERC20B.sol \
+    --verify RewardsManagerHarness:certora/specs/Badger-datapunk-3.spec \
+    --packages @oz=certora/openzeppelin/contracts \
+    --solc solc8.10  \
+    --send_only \
+    --staging \
+    --optimistic_loop \
+    --loop_iter 2 \
+    --msg "$(basename $BASH_SOURCE)"
